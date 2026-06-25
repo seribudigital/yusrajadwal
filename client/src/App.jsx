@@ -171,7 +171,7 @@ function App() {
       for (const res of responses) {
         if (!res.ok) {
           const text = await res.text();
-          throw new Error(`Endpoint ${res.url} mengembalikan status ${res.status}: ${text ? (text.length > 100 ? text.substring(0, 100) + '...' : text) : 'Unknown Error'}`);
+          throw new Error(`Endpoint ${res.url} mengembalikan status ${res.status}: ${text ? (text.length > 400 ? text.substring(0, 400) + '...' : text) : 'Unknown Error'}`);
         }
       }
 

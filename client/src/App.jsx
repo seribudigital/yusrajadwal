@@ -126,7 +126,15 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      const data = await res.json();
+      
+      let data;
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        data = { error: text ? (text.length > 150 ? text.substring(0, 150) + '...' : text) : `HTTP ${res.status}` };
+      }
 
       if (res.ok) {
         localStorage.setItem('token', data.token);
@@ -138,7 +146,8 @@ function App() {
         setAuthError(data.error || 'Terjadi kesalahan saat otentikasi.');
       }
     } catch (err) {
-      setAuthError('Gagal terhubung ke server auth. Pastikan server aktif.');
+      console.error(err);
+      setAuthError('Gagal terhubung ke server auth. Detail: ' + err.message);
     } finally {
       setAuthLoading(false);
     }

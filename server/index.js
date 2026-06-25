@@ -1,9 +1,7 @@
+import './envFix.js';
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import router from './routes.js';
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;

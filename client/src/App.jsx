@@ -694,7 +694,7 @@ function App() {
             </div>
 
             <div className="text-[10px] text-slate-500 font-medium">
-              © 2026 Yusra Jadwal. Powered by Antigravity AI.
+              © 2026 Yusra Jadwal. Created by anamf.
             </div>
           </div>
 
@@ -2444,7 +2444,7 @@ function App() {
 
       {/* Footer */}
       <footer className="border-t border-slate-900 bg-slate-950 py-4 text-center text-[10px] text-slate-500 font-medium print:hidden">
-        © 2026 Yusra Jadwal (Semi-Otomatis). Powered by Antigravity AI.
+        © 2026 Yusra Jadwal (Semi-Otomatis). Created by anamf.
       </footer>
     </div>
   );

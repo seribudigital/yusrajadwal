@@ -13,5 +13,13 @@ if (process.env.DATABASE_URL) {
     url = url.slice(1, -1);
   }
   
-  process.env.DATABASE_URL = url.trim();
+  url = url.trim();
+  
+  // Auto-append pgbouncer=true to disable prepared statements if using Supabase Pooler
+  if (url.includes('pooler.supabase.com') && !url.includes('pgbouncer=true')) {
+    const separator = url.includes('?') ? '&' : '?';
+    url = `${url}${separator}pgbouncer=true`;
+  }
+  
+  process.env.DATABASE_URL = url;
 }

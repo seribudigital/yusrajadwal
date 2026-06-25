@@ -1,0 +1,118 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id             Int             @id @default(autoincrement())
+  email          String          @unique
+  password       String
+  nama_sekolah   String
+  createdAt      DateTime        @default(now())
+  gurus          Guru[]
+  kelas          Kelas[]
+  mapels         Mapel[]
+  slots          Slot[]
+  plots          Plot[]
+  jadwals        Jadwal[]
+  schoolProfiles SchoolProfile[]
+
+  @@map("users")
+}
+
+model Guru {
+  id        Int     @id @default(autoincrement())
+  nama_guru String
+  nip       String?
+  plots     Plot[]  @relation("GuruPlots")
+  user_id   Int
+  user      User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("gurus")
+}
+
+model Kelas {
+  id         Int     @id @default(autoincrement())
+  nama_kelas String
+  plots      Plot[]  @relation("KelasPlots")
+  user_id   Int
+  user      User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("kelas")
+}
+
+model Mapel {
+  id         Int     @id @default(autoincrement())
+  nama_mapel String
+  kode_mapel String?
+  plots      Plot[]  @relation("MapelPlots")
+  user_id   Int
+  user      User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("mapels")
+}
+
+model Slot {
+  id           Int      @id @default(autoincrement())
+  hari         String   // 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'
+  jam_ke       Int?     // null if it is break (is_istirahat = true)
+  jam_mulai    String   // Format: HH:MM, editable/dynamic
+  jam_selesai  String   // Format: HH:MM, editable/dynamic
+  is_istirahat Boolean  @default(false)
+  keterangan   String?  // 'Pelajaran', 'Istirahat Pagi', 'Istirahat Siang', 'Istirahat Sore'
+  jadwals      Jadwal[] @relation("SlotJadwals")
+  user_id      Int
+  user         User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("slots")
+}
+
+model Plot {
+  id        Int      @id @default(autoincrement())
+  guru_id   Int
+  mapel_id  Int
+  kelas_id  Int
+  beban_jam Int
+  guru      Guru     @relation("GuruPlots", fields: [guru_id], references: [id], onDelete: Cascade)
+  mapel     Mapel    @relation("MapelPlots", fields: [mapel_id], references: [id], onDelete: Cascade)
+  kelas     Kelas    @relation("KelasPlots", fields: [kelas_id], references: [id], onDelete: Cascade)
+  jadwals   Jadwal[] @relation("PlotJadwals")
+  user_id   Int
+  user      User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("plots")
+}
+
+model Jadwal {
+  id      Int  @id @default(autoincrement())
+  slot_id Int
+  plot_id Int
+  slot    Slot @relation("SlotJadwals", fields: [slot_id], references: [id], onDelete: Cascade)
+  plot    Plot @relation("PlotJadwals", fields: [plot_id], references: [id], onDelete: Cascade)
+  user_id Int
+  user    User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("jadwals")
+}
+
+model SchoolProfile {
+  id                   Int     @id @default(autoincrement())
+  nama_sekolah         String
+  nama_kepala_sekolah  String
+  nip_kepala_sekolah   String?
+  nama_penyusun_jadwal String
+  nip_penyusun_jadwal  String?
+  semester             String
+  tahun_ajaran         String
+  tanggal_berlaku      String?
+  tanggal_cetak        String?
+  logo_url             String? // Base64 or upload path
+  user_id              Int
+  user                 User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("school_profiles")
+}

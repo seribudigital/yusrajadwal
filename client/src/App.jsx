@@ -157,15 +157,25 @@ function App() {
   const fetchData = async () => {
     if (!token) return;
     try {
-      const [g, k, m, s, p, j, sp] = await Promise.all([
-        apiFetch(`${API_BASE}/gurus`).then((r) => r.json()),
-        apiFetch(`${API_BASE}/kelas`).then((r) => r.json()),
-        apiFetch(`${API_BASE}/mapels`).then((r) => r.json()),
-        apiFetch(`${API_BASE}/slots`).then((r) => r.json()),
-        apiFetch(`${API_BASE}/plots`).then((r) => r.json()),
-        apiFetch(`${API_BASE}/jadwals`).then((r) => r.json()),
-        apiFetch(`${API_BASE}/school-profile`).then((r) => r.json()),
+      const responses = await Promise.all([
+        apiFetch(`${API_BASE}/gurus`),
+        apiFetch(`${API_BASE}/kelas`),
+        apiFetch(`${API_BASE}/mapels`),
+        apiFetch(`${API_BASE}/slots`),
+        apiFetch(`${API_BASE}/plots`),
+        apiFetch(`${API_BASE}/jadwals`),
+        apiFetch(`${API_BASE}/school-profile`),
       ]);
+
+      // Verify all responses succeeded
+      for (const res of responses) {
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`Endpoint ${res.url} mengembalikan status ${res.status}: ${text ? (text.length > 100 ? text.substring(0, 100) + '...' : text) : 'Unknown Error'}`);
+        }
+      }
+
+      const [g, k, m, s, p, j, sp] = await Promise.all(responses.map((r) => r.json()));
 
       setGurus(g);
       setKelas(k);
@@ -207,7 +217,8 @@ function App() {
         setSelectedRekapGuruId(g[0].id);
       }
     } catch (err) {
-      showToast('Gagal memuat data dari server.', 'error');
+      console.error(err);
+      showToast('Gagal memuat data: ' + err.message, 'error');
     }
   };
 

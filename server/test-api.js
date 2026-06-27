@@ -4,80 +4,104 @@ async function runTests() {
   console.log('=== STARTING API VALIDATION TESTS ===\n');
 
   try {
-    // 1. Create a Teacher (Budi Utomo)
-    const guruRes1 = await fetch(`${BASE_URL}/gurus`, {
+    // Register a test user
+    const randomEmail = `test-${Math.random().toString(36).substring(7)}@sekolah.sch.id`;
+    const regRes = await fetch(`${BASE_URL}/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: randomEmail, password: 'password123', nama_sekolah: 'Test School' })
+    });
+    const regData = await regRes.json();
+    console.log(`Registered test user: ${randomEmail}`);
+
+    // Login to get token
+    const loginRes = await fetch(`${BASE_URL}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: randomEmail, password: 'password123' })
+    });
+    const loginData = await loginRes.json();
+    const token = loginData.token;
+    console.log('Logged in, token received successfully.');
+
+    // Helper fetch wrapper with Authorization header
+    const authFetch = (url, options = {}) => {
+      return fetch(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          ...options.headers
+        }
+      });
+    };
+
+    // 1. Create a Teacher (Budi Utomo)
+    const guruRes1 = await authFetch(`${BASE_URL}/gurus`, {
+      method: 'POST',
       body: JSON.stringify({ nama_guru: 'Budi Utomo', nip: '198203112009021003' })
     });
     const guru1 = await guruRes1.json();
     console.log(`Created Teacher 1: ${guru1.nama_guru} (ID: ${guru1.id})`);
 
     // 2. Create another Teacher (Siti Aminah)
-    const guruRes2 = await fetch(`${BASE_URL}/gurus`, {
+    const guruRes2 = await authFetch(`${BASE_URL}/gurus`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ nama_guru: 'Siti Aminah', nip: '198711042012042001' })
     });
     const guru2 = await guruRes2.json();
     console.log(`Created Teacher 2: ${guru2.nama_guru} (ID: ${guru2.id})`);
 
     // 3. Create a Class (7-A)
-    const kelasRes1 = await fetch(`${BASE_URL}/kelas`, {
+    const kelasRes1 = await authFetch(`${BASE_URL}/kelas`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ nama_kelas: '7-A' })
     });
     const kelas1 = await kelasRes1.json();
     console.log(`Created Class 1: ${kelas1.nama_kelas} (ID: ${kelas1.id})`);
 
     // 4. Create another Class (7-B)
-    const kelasRes2 = await fetch(`${BASE_URL}/kelas`, {
+    const kelasRes2 = await authFetch(`${BASE_URL}/kelas`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ nama_kelas: '7-B' })
     });
     const kelas2 = await kelasRes2.json();
     console.log(`Created Class 2: ${kelas2.nama_kelas} (ID: ${kelas2.id})`);
 
     // 5. Create a Subject (Matematika)
-    const mapelRes = await fetch(`${BASE_URL}/mapels`, {
+    const mapelRes = await authFetch(`${BASE_URL}/mapels`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ nama_mapel: 'Matematika', kode_mapel: 'MTK' })
     });
     const mapel = await mapelRes.json();
     console.log(`Created Subject: ${mapel.nama_mapel} (ID: ${mapel.id})`);
 
     // 6. Create Plot 1: Teacher Budi, Math, Class 7-A (Quota: 2 hours)
-    const plotRes1 = await fetch(`${BASE_URL}/plots`, {
+    const plotRes1 = await authFetch(`${BASE_URL}/plots`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ guru_id: guru1.id, mapel_id: mapel.id, kelas_id: kelas1.id, beban_jam: 2 })
     });
     const plot1 = await plotRes1.json();
     console.log(`Created Plot 1 (Budi - MTK - 7-A): Quota = ${plot1.beban_jam} hours (ID: ${plot1.id})`);
 
     // 7. Create Plot 2: Teacher Siti, Math, Class 7-A (Quota: 1 hour)
-    const plotRes2 = await fetch(`${BASE_URL}/plots`, {
+    const plotRes2 = await authFetch(`${BASE_URL}/plots`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ guru_id: guru2.id, mapel_id: mapel.id, kelas_id: kelas1.id, beban_jam: 1 })
     });
     const plot2 = await plotRes2.json();
     console.log(`Created Plot 2 (Siti - MTK - 7-A): Quota = ${plot2.beban_jam} hour (ID: ${plot2.id})`);
 
     // 8. Create Plot 3: Teacher Budi, Math, Class 7-B (Quota: 2 hours)
-    const plotRes3 = await fetch(`${BASE_URL}/plots`, {
+    const plotRes3 = await authFetch(`${BASE_URL}/plots`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ guru_id: guru1.id, mapel_id: mapel.id, kelas_id: kelas2.id, beban_jam: 2 })
     });
     const plot3 = await plotRes3.json();
     console.log(`Created Plot 3 (Budi - MTK - 7-B): Quota = ${plot3.beban_jam} hours (ID: ${plot3.id})\n`);
 
     // 9. Fetch Slots
-    const slotsRes = await fetch(`${BASE_URL}/slots`);
+    const slotsRes = await authFetch(`${BASE_URL}/slots`);
     const slots = await slotsRes.json();
     
     // Find slots for Senin
@@ -94,9 +118,8 @@ async function runTests() {
 
     // --- TEST 1: Validasi Slot Istirahat ---
     console.log('Testing Test 1: Scheduling in Break Slot...');
-    const t1Res = await fetch(`${BASE_URL}/jadwals`, {
+    const t1Res = await authFetch(`${BASE_URL}/jadwals`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ slot_id: breakSlot.id, plot_id: plot1.id })
     });
     const t1Data = await t1Res.json();
@@ -109,9 +132,8 @@ async function runTests() {
 
     // --- SETUP: Schedule Plot 1 (Budi, Math, 7-A) on Senin Jam 1 (Should succeed) ---
     console.log('Setup: Scheduling Plot 1 on Senin Jam 1...');
-    const setupRes = await fetch(`${BASE_URL}/jadwals`, {
+    const setupRes = await authFetch(`${BASE_URL}/jadwals`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ slot_id: normalSlot1.id, plot_id: plot1.id })
     });
     const jadwal1 = await setupRes.json();
@@ -125,9 +147,8 @@ async function runTests() {
     // --- TEST 2: Validasi Kelas Bentrok ---
     console.log('Testing Test 2: Scheduling Class 7-A again at same slot...');
     // Plot 2 is for Class 7-A (Teacher Siti)
-    const t2Res = await fetch(`${BASE_URL}/jadwals`, {
+    const t2Res = await authFetch(`${BASE_URL}/jadwals`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ slot_id: normalSlot1.id, plot_id: plot2.id })
     });
     const t2Data = await t2Res.json();
@@ -141,9 +162,8 @@ async function runTests() {
     // --- TEST 3: Validasi Guru Bentrok ---
     console.log('Testing Test 3: Scheduling Teacher Budi again at same slot (different class 7-B)...');
     // Plot 3 is Teacher Budi in Class 7-B
-    const t3Res = await fetch(`${BASE_URL}/jadwals`, {
+    const t3Res = await authFetch(`${BASE_URL}/jadwals`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ slot_id: normalSlot1.id, plot_id: plot3.id })
     });
     const t3Data = await t3Res.json();
@@ -156,9 +176,8 @@ async function runTests() {
 
     // --- SETUP: Schedule Plot 1 on Senin Jam 2 (Success, 2nd hours of Budi, Math, 7-A) ---
     console.log('Setup: Scheduling Plot 1 on Senin Jam 2 (using up quota of 2)...');
-    const setup2Res = await fetch(`${BASE_URL}/jadwals`, {
+    const setup2Res = await authFetch(`${BASE_URL}/jadwals`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ slot_id: normalSlot2.id, plot_id: plot1.id })
     });
     const jadwal2 = await setup2Res.json();
@@ -171,9 +190,8 @@ async function runTests() {
 
     // --- TEST 4: Validasi Kuota Beban Jam ---
     console.log('Testing Test 4: Scheduling Plot 1 on Senin Jam 3 (exceeding quota of 2)...');
-    const t4Res = await fetch(`${BASE_URL}/jadwals`, {
+    const t4Res = await authFetch(`${BASE_URL}/jadwals`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ slot_id: normalSlot3.id, plot_id: plot1.id })
     });
     const t4Data = await t4Res.json();
@@ -186,9 +204,8 @@ async function runTests() {
 
     // --- TEST 5: PUT Update (Excluding Self ID) ---
     console.log('Testing Test 5: Updating Jadwal 1 (Senin Jam 1) with same info (should succeed due to self-exclusion)...');
-    const t5Res = await fetch(`${BASE_URL}/jadwals/${jadwal1.id}`, {
+    const t5Res = await authFetch(`${BASE_URL}/jadwals/${jadwal1.id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ slot_id: normalSlot1.id, plot_id: plot1.id })
     });
     const t5Data = await t5Res.json();

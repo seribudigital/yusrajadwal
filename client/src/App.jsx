@@ -8,7 +8,7 @@ const API_BASE = import.meta.env.VITE_API_BASE ||
 const getBlockedIcon = (label) => {
   if (!label) return '🔒';
   const l = label.toLowerCase();
-  if (l.includes('upacara')) return '🇮🇩';
+  if (l.includes('upacara')) return '🚩';
   if (l.includes('sholat') || l.includes('dhuha') || l.includes('shalat')) return '🕌';
   if (l.includes('istirahat')) return '⏰';
   return '🔒';
@@ -2923,7 +2923,7 @@ function App() {
                     <div className="border-t border-slate-800 pt-2">
                       <strong className="text-slate-200">Hasil:</strong>
                       <p className="text-slate-400 mt-1">
-                        Kotak akan otomatis tersegel dengan ikon yang sesuai (misal: 🇮🇩 Upacara, 🕌 Shalat Dhuha, atau 🔒 Kunci Umum) untuk mencegah pengisian jadwal secara tidak sengaja di kelas tersebut. Klik ikon gembok lagi (🔓) untuk membukanya kembali.
+                        Kotak akan otomatis tersegel dengan ikon yang sesuai (misal: 🚩 Upacara, 🕌 Shalat Dhuha, atau 🔒 Kunci Umum) untuk mencegah pengisian jadwal secara tidak sengaja di kelas tersebut. Klik ikon gembok lagi (🔓) untuk membukanya kembali.
                       </p>
                     </div>
                   </div>

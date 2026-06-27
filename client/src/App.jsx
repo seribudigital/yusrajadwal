@@ -266,69 +266,148 @@ function App() {
 
     const sourceJadwalIdStr = e.dataTransfer.getData('sourceJadwalId');
     const isMove = !!sourceJadwalIdStr;
+    const sourceJadwalId = isMove ? parseInt(sourceJadwalIdStr) : null;
 
-    try {
-      if (isMove) {
-        const sourceJadwalId = parseInt(sourceJadwalIdStr);
-        // Find existing schedule to check if slot changed
-        const currentJadwal = jadwals.find(j => j.id === sourceJadwalId);
-        if (currentJadwal && currentJadwal.slot_id === slotId) {
-          // Dropped on the same slot, do nothing
-          return;
-        }
+    // === CLIENT-SIDE VALIDATION (instant, no server roundtrip) ===
+    const slot = slots.find(s => s.id === slotId);
+    const plot = plots.find(p => p.id === plotId);
+    if (!slot || !plot) return;
 
+    // 1. Break slot check
+    if (slot.is_istirahat) {
+      showToast('Tidak dapat menempatkan pelajaran pada jam istirahat!', 'error');
+      return;
+    }
+
+    // 2. Teacher clash check
+    const teacherClash = jadwals.find(j =>
+      j.slot_id === slotId &&
+      j.plot?.guru_id === plot.guru_id &&
+      (!isMove || j.id !== sourceJadwalId)
+    );
+    if (teacherClash) {
+      showToast(`Guru ${plot.guru?.nama_guru || ''} sudah mengajar di kelas lain pada jam ini!`, 'error');
+      return;
+    }
+
+    // 3. Class clash check
+    const classClash = jadwals.find(j =>
+      j.slot_id === slotId &&
+      j.plot?.kelas_id === plot.kelas_id &&
+      (!isMove || j.id !== sourceJadwalId)
+    );
+    if (classClash) {
+      showToast('Kelas ini sudah memiliki jadwal pelajaran lain pada jam ini!', 'error');
+      return;
+    }
+
+    // 4. Quota check
+    const scheduledCount = jadwals.filter(j =>
+      j.plot_id === plotId &&
+      (!isMove || j.id !== sourceJadwalId)
+    ).length;
+    if (scheduledCount >= plot.beban_jam) {
+      showToast('Jatah jam mengajar untuk mata pelajaran ini sudah habis!', 'error');
+      return;
+    }
+
+    // === OPTIMISTIC UPDATE (instant UI) ===
+    if (isMove) {
+      const currentJadwal = jadwals.find(j => j.id === sourceJadwalId);
+      if (currentJadwal && currentJadwal.slot_id === slotId) return;
+
+      // Instantly update UI
+      setJadwals(prev => prev.map(j => j.id === sourceJadwalId
+        ? { ...j, slot_id: slotId, slot: slot }
+        : j
+      ));
+      setSuccessDropSlotId(slotId);
+      showToast('Jadwal berhasil dipindahkan!', 'success');
+      setTimeout(() => setSuccessDropSlotId(null), 1000);
+
+      // Sync with server in background
+      try {
         const res = await apiFetch(`${API_BASE}/jadwals/${sourceJadwalId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ slot_id: slotId, plot_id: plotId }),
         });
-        const data = await res.json();
-
         if (res.ok) {
-          setJadwals((prev) => prev.map((j) => (j.id === sourceJadwalId ? data : j)));
-          setSuccessDropSlotId(slotId);
-          showToast('Jadwal berhasil dipindahkan!', 'success');
-          setTimeout(() => setSuccessDropSlotId(null), 1000);
+          const data = await res.json();
+          setJadwals(prev => prev.map(j => j.id === sourceJadwalId ? data : j));
         } else {
-          showToast(data.error || 'Gagal memindahkan jadwal.', 'error');
+          // Revert on server rejection
+          const errData = await res.json();
+          setJadwals(prev => prev.map(j => j.id === sourceJadwalId ? currentJadwal : j));
+          showToast(errData.error || 'Server menolak perubahan. Jadwal dikembalikan.', 'error');
         }
-      } else {
+      } catch (err) {
+        setJadwals(prev => prev.map(j => j.id === sourceJadwalId ? currentJadwal : j));
+        showToast('Koneksi server gagal. Jadwal dikembalikan.', 'error');
+      }
+    } else {
+      // New drop — create optimistic jadwal
+      const tempId = -Date.now();
+      const optimisticJadwal = {
+        id: tempId,
+        slot_id: slotId,
+        plot_id: plotId,
+        slot: slot,
+        plot: plot,
+        user_id: null,
+      };
+
+      // Instantly update UI
+      setJadwals(prev => [...prev, optimisticJadwal]);
+      setSuccessDropSlotId(slotId);
+      showToast('Jadwal berhasil ditambahkan!', 'success');
+      setTimeout(() => setSuccessDropSlotId(null), 1000);
+
+      // Sync with server in background
+      try {
         const res = await apiFetch(`${API_BASE}/jadwals`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ slot_id: slotId, plot_id: plotId }),
         });
-        const data = await res.json();
-
         if (res.ok) {
-          setJadwals((prev) => [...prev, data]);
-          setSuccessDropSlotId(slotId);
-          showToast('Jadwal berhasil ditambahkan!', 'success');
-          setTimeout(() => setSuccessDropSlotId(null), 1000);
+          const data = await res.json();
+          setJadwals(prev => prev.map(j => j.id === tempId ? data : j));
         } else {
-          showToast(data.error || 'Gagal menyimpan jadwal.', 'error');
+          // Revert on server rejection
+          const errData = await res.json();
+          setJadwals(prev => prev.filter(j => j.id !== tempId));
+          showToast(errData.error || 'Server menolak. Jadwal dihapus kembali.', 'error');
         }
+      } catch (err) {
+        setJadwals(prev => prev.filter(j => j.id !== tempId));
+        showToast('Koneksi server gagal. Jadwal dihapus kembali.', 'error');
       }
-    } catch (err) {
-      showToast('Koneksi server gagal.', 'error');
     }
   };
 
   const handleDeleteJadwal = async (jadwalId) => {
     if (!window.confirm('Hapus jadwal pelajaran ini?')) return;
+
+    // Optimistic: remove from UI instantly
+    const removedJadwal = jadwals.find(j => j.id === jadwalId);
+    setJadwals(prev => prev.filter(j => j.id !== jadwalId));
+    showToast('Jadwal berhasil dihapus.', 'success');
+
+    // Sync with server in background
     try {
       const res = await apiFetch(`${API_BASE}/jadwals/${jadwalId}`, {
         method: 'DELETE',
       });
-      if (res.ok) {
-        setJadwals((prev) => prev.filter((j) => j.id !== jadwalId));
-        showToast('Jadwal berhasil dihapus.', 'success');
-      } else {
+      if (!res.ok) {
+        // Revert on failure
+        if (removedJadwal) setJadwals(prev => [...prev, removedJadwal]);
         const data = await res.json();
-        showToast(data.error || 'Gagal menghapus jadwal.', 'error');
+        showToast(data.error || 'Gagal menghapus jadwal. Dikembalikan.', 'error');
       }
     } catch (err) {
-      showToast('Koneksi server gagal.', 'error');
+      if (removedJadwal) setJadwals(prev => [...prev, removedJadwal]);
+      showToast('Koneksi server gagal. Jadwal dikembalikan.', 'error');
     }
   };
 
@@ -614,44 +693,92 @@ function App() {
     const url = isEdit ? `${API_BASE}/plots/${plotForm.id}` : `${API_BASE}/plots`;
     const method = isEdit ? 'PUT' : 'POST';
 
+    const numericGuruId = parseInt(plotForm.guru_id);
+    const numericMapelId = parseInt(plotForm.mapel_id);
+    const numericKelasId = parseInt(plotForm.kelas_id);
+    const numericBebanJam = parseInt(plotForm.beban_jam);
+
+    // === CLIENT-SIDE VALIDATION (instant duplicate check) ===
+    const existingPlot = plots.find(p =>
+      p.guru_id === numericGuruId &&
+      p.mapel_id === numericMapelId &&
+      p.kelas_id === numericKelasId &&
+      (!isEdit || p.id !== plotForm.id)
+    );
+    if (existingPlot) {
+      showToast('Kombinasi Guru, Mata Pelajaran, dan Kelas ini sudah terdaftar!', 'error');
+      setHighlightedPlotId(existingPlot.id);
+      setTimeout(() => {
+        const el = document.getElementById(`plot-row-${existingPlot.id}`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+      setTimeout(() => setHighlightedPlotId(null), 4500);
+      return;
+    }
+
+    // === BUILD OPTIMISTIC PLOT from local state ===
+    const guruObj = gurus.find(g => g.id === numericGuruId);
+    const mapelObj = mapels.find(m => m.id === numericMapelId);
+    const kelasObj = kelas.find(k => k.id === numericKelasId);
+    const tempId = -Date.now();
+    const optimisticPlot = {
+      id: isEdit ? plotForm.id : tempId,
+      guru_id: numericGuruId,
+      mapel_id: numericMapelId,
+      kelas_id: numericKelasId,
+      beban_jam: numericBebanJam,
+      guru: guruObj || null,
+      mapel: mapelObj || null,
+      kelas: kelasObj || null,
+      user_id: null,
+    };
+
+    // === OPTIMISTIC UPDATE (instant UI) ===
+    const previousPlots = [...plots];
+    if (isEdit) {
+      setPlots(prev => prev.map(p => p.id === plotForm.id ? optimisticPlot : p));
+    } else {
+      setPlots(prev => [...prev, optimisticPlot]);
+    }
+    showToast(`Plot tugas mengajar berhasil ${isEdit ? 'diperbarui' : 'disimpan'}!`);
+    setPlotForm({ id: null, guru_id: '', mapel_id: '', kelas_id: '', beban_jam: '' });
+
+    // === SYNC WITH SERVER in background ===
     try {
       const res = await apiFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          guru_id: plotForm.guru_id,
-          mapel_id: plotForm.mapel_id,
-          kelas_id: plotForm.kelas_id,
-          beban_jam: plotForm.beban_jam,
+          guru_id: numericGuruId,
+          mapel_id: numericMapelId,
+          kelas_id: numericKelasId,
+          beban_jam: numericBebanJam,
         }),
       });
       if (res.ok) {
         const data = await res.json();
         if (isEdit) {
-          setPlots(prev => prev.map(p => p.id === data.id ? data : p));
+          setPlots(prev => prev.map(p => p.id === plotForm.id ? data : p));
         } else {
-          setPlots(prev => [...prev, data]);
+          setPlots(prev => prev.map(p => p.id === tempId ? data : p));
         }
-        showToast(`Plot tugas mengajar berhasil ${isEdit ? 'diperbarui' : 'disimpan'}!`);
-        setPlotForm({ id: null, guru_id: '', mapel_id: '', kelas_id: '', beban_jam: '' });
       } else {
+        // Revert on server rejection
+        setPlots(previousPlots);
         const data = await res.json();
-        showToast(data.error || 'Gagal menyimpan plot.', 'error');
+        showToast(data.error || 'Server menolak. Plot dikembalikan.', 'error');
         if (data.existingPlotId) {
           setHighlightedPlotId(data.existingPlotId);
           setTimeout(() => {
             const el = document.getElementById(`plot-row-${data.existingPlotId}`);
-            if (el) {
-              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
           }, 100);
-          setTimeout(() => {
-            setHighlightedPlotId(null);
-          }, 4500);
+          setTimeout(() => setHighlightedPlotId(null), 4500);
         }
       }
     } catch (err) {
-      showToast('Koneksi server gagal.', 'error');
+      setPlots(previousPlots);
+      showToast('Koneksi server gagal. Plot dikembalikan.', 'error');
     }
   };
 

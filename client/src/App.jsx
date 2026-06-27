@@ -25,6 +25,7 @@ function App() {
   const [slots, setSlots] = useState([]);
   const [plots, setPlots] = useState([]);
   const [jadwals, setJadwals] = useState([]);
+  const [blockedSlots, setBlockedSlots] = useState([]);
 
   // Active Selections
   const [selectedKelasId, setSelectedKelasId] = useState(null);
@@ -165,6 +166,7 @@ function App() {
         apiFetch(`${API_BASE}/plots`),
         apiFetch(`${API_BASE}/jadwals`),
         apiFetch(`${API_BASE}/school-profile`),
+        apiFetch(`${API_BASE}/blocked-slots`),
       ]);
 
       // Verify all responses succeeded
@@ -175,7 +177,7 @@ function App() {
         }
       }
 
-      const [g, k, m, s, p, j, sp] = await Promise.all(responses.map((r) => r.json()));
+      const [g, k, m, s, p, j, sp, bs] = await Promise.all(responses.map((r) => r.json()));
 
       setGurus(g);
       setKelas(k);
@@ -184,6 +186,7 @@ function App() {
       setPlots(p);
       setJadwals(j);
       setSchoolProfile(sp);
+      setBlockedSlots(bs);
 
       // Populate form and signature values
       if (sp) {
@@ -276,6 +279,16 @@ function App() {
     // 1. Break slot check
     if (slot.is_istirahat) {
       showToast('Tidak dapat menempatkan pelajaran pada jam istirahat!', 'error');
+      return;
+    }
+
+    // 1b. Blocked slot check
+    const isBlocked = blockedSlots.some(bs =>
+      bs.slot_id === slotId &&
+      bs.kelas_id === plot.kelas_id
+    );
+    if (isBlocked) {
+      showToast('Slot waktu ini sedang dikunci/diblokir untuk kelas ini!', 'error');
       return;
     }
 
@@ -408,6 +421,73 @@ function App() {
     } catch (err) {
       if (removedJadwal) setJadwals(prev => [...prev, removedJadwal]);
       showToast('Koneksi server gagal. Jadwal dikembalikan.', 'error');
+    }
+  };
+
+  const handleLockSlot = async (slotId) => {
+    if (!selectedKelasId) {
+      showToast('Pilih kelas terlebih dahulu!', 'error');
+      return;
+    }
+    const label = window.prompt("Masukkan label kustom untuk mengunci slot ini (misal: 'Sholat Dhuha', 'Upacara'):", "Kegiatan");
+    if (label === null || !label.trim()) return;
+
+    const tempId = -Math.floor(Math.random() * 1000000);
+    const newBlocked = {
+      id: tempId,
+      kelas_id: Number(selectedKelasId),
+      slot_id: slotId,
+      label: label.trim()
+    };
+
+    // Optimistic update
+    setBlockedSlots(prev => [...prev, newBlocked]);
+    showToast('Slot berhasil dikunci!', 'success');
+
+    try {
+      const res = await apiFetch(`${API_BASE}/blocked-slots`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kelas_id: Number(selectedKelasId),
+          slot_id: slotId,
+          label: label.trim()
+        })
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        setBlockedSlots(prev => prev.map(bs => bs.id === tempId ? saved : bs));
+      } else {
+        setBlockedSlots(prev => prev.filter(bs => bs.id !== tempId));
+        const data = await res.json();
+        showToast(data.error || 'Gagal mengunci slot.', 'error');
+      }
+    } catch (err) {
+      setBlockedSlots(prev => prev.filter(bs => bs.id !== tempId));
+      showToast('Koneksi server gagal. Kunci slot dibatalkan.', 'error');
+    }
+  };
+
+  const handleUnlockSlot = async (blockedId) => {
+    if (!window.confirm('Buka kunci slot ini dan bebaskan kembali?')) return;
+
+    // Optimistic update
+    const removedBlocked = blockedSlots.find(bs => bs.id === blockedId);
+    setBlockedSlots(prev => prev.filter(bs => bs.id !== blockedId));
+    showToast('Kunci slot berhasil dilepas.', 'success');
+
+    try {
+      const res = await apiFetch(`${API_BASE}/blocked-slots/${blockedId}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) {
+        if (removedBlocked) setBlockedSlots(prev => [...prev, removedBlocked]);
+        const data = await res.json();
+        showToast(data.error || 'Gagal melepas kunci slot.', 'error');
+      }
+    } catch (err) {
+      if (removedBlocked) setBlockedSlots(prev => [...prev, removedBlocked]);
+      showToast('Koneksi server gagal. Kunci slot dikembalikan.', 'error');
     }
   };
 
@@ -1227,6 +1307,12 @@ function App() {
                               (j) => j.slot_id === slot.id && j.plot.kelas_id === Number(selectedKelasId)
                             );
 
+                            // Check if this slot is blocked for this class
+                            const blocked = blockedSlots.find(
+                              (bs) => bs.slot_id === slot.id && bs.kelas_id === Number(selectedKelasId)
+                            );
+                            const isBlocked = !!blocked;
+
                             // Check if selected teacher is busy at this slot in another class
                             const busyTeacherJadwal = selectedFilterGuruId
                               ? jadwals.find(
@@ -1243,13 +1329,19 @@ function App() {
                             return (
                               <td
                                 key={day}
-                                onDragOver={(e) => handleDragOver(e, slot.id)}
-                                onDragLeave={handleDragLeave}
-                                onDrop={(e) => handleDrop(e, slot.id)}
+                                onDragOver={(e) => {
+                                  if (isBlocked) return;
+                                  handleDragOver(e, slot.id);
+                                }}
+                                onDragLeave={isBlocked ? undefined : handleDragLeave}
+                                onDrop={(e) => {
+                                  if (isBlocked) return;
+                                  handleDrop(e, slot.id);
+                                }}
                                 className={`p-2 border-r border-slate-800/30 relative group transition-all duration-200 ${
-                                  isDraggedOver ? 'bg-indigo-950/60 ring-2 ring-indigo-500 border-indigo-500' : ''
+                                  !isBlocked && isDraggedOver ? 'bg-indigo-950/60 ring-2 ring-indigo-500 border-indigo-500' : ''
                                 } ${
-                                  isSuccessDrop ? 'bg-emerald-950/60 ring-2 ring-emerald-500 border-emerald-500 scale-[0.98]' : ''
+                                  !isBlocked && isSuccessDrop ? 'bg-emerald-950/60 ring-2 ring-emerald-500 border-emerald-500 scale-[0.98]' : ''
                                 }`}
                               >
                                 {scheduled ? (
@@ -1280,6 +1372,25 @@ function App() {
                                       🗑️
                                     </button>
                                   </div>
+                                ) : blocked ? (
+                                  <div
+                                    className="border border-dashed border-slate-700/85 bg-slate-900/60 text-slate-400 rounded-lg p-2.5 flex flex-col h-full min-h-[50px] justify-between shadow-md relative group select-none transition-all"
+                                    title={`Diberlakukan Kunci Slot: ${blocked.label}`}
+                                  >
+                                    <div className="font-bold text-xs text-slate-300 leading-tight flex items-center gap-1.5">
+                                      🚫 {blocked.label}
+                                    </div>
+                                    <div className="text-[8px] text-slate-500 mt-1.5">
+                                      ⏰ {slot.jam_mulai} - {slot.jam_selesai}
+                                    </div>
+                                    <button
+                                      onClick={() => handleUnlockSlot(blocked.id)}
+                                      className="absolute top-1 right-1 p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-rose-450 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                                      title="Buka Kunci Slot"
+                                    >
+                                      🔓
+                                    </button>
+                                  </div>
                                 ) : busyTeacherJadwal ? (
                                   busyTeacherJadwal.plot.kelas.nama_kelas === "OFFLINE" ? (
                                     <div
@@ -1299,8 +1410,18 @@ function App() {
                                     </div>
                                   )
                                 ) : (
-                                  <div className="border border-dashed border-slate-800 rounded-lg py-4 px-1 text-center text-[10px] text-slate-600 group-hover:border-slate-700 select-none">
-                                    Kosong
+                                  <div className="border border-dashed border-slate-800 rounded-lg py-4 px-1 text-center text-[10px] text-slate-600 group-hover:border-slate-700 select-none relative flex flex-col justify-center items-center min-h-[50px]">
+                                    <span>Kosong</span>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleLockSlot(slot.id);
+                                      }}
+                                      className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-slate-800 text-slate-400 hover:text-indigo-400 cursor-pointer"
+                                      title="Kunci Slot Waktu"
+                                    >
+                                      🔒
+                                    </button>
                                   </div>
                                 )}
                               </td>

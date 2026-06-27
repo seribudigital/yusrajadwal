@@ -20,6 +20,7 @@ model User {
   plots          Plot[]
   jadwals        Jadwal[]
   schoolProfiles SchoolProfile[]
+  blockedSlots   BlockedSlot[]
 
   @@map("users")
 }
@@ -42,6 +43,7 @@ model Kelas {
   plots      Plot[]  @relation("KelasPlots")
   user_id   Int
   user      User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  blockedSlots BlockedSlot[]
 
   @@index([user_id])
   @@map("kelas")
@@ -70,6 +72,7 @@ model Slot {
   jadwals      Jadwal[] @relation("SlotJadwals")
   user_id      Int
   user         User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  blockedSlots BlockedSlot[]
 
   @@index([user_id])
   @@map("slots")
@@ -124,4 +127,20 @@ model SchoolProfile {
 
   @@index([user_id])
   @@map("school_profiles")
+}
+
+model BlockedSlot {
+  id       Int    @id @default(autoincrement())
+  label    String
+  user_id  Int
+  kelas_id Int
+  slot_id  Int
+
+  user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  kelas Kelas @relation(fields: [kelas_id], references: [id], onDelete: Cascade)
+  slot  Slot  @relation(fields: [slot_id], references: [id], onDelete: Cascade)
+
+  @@unique([kelas_id, slot_id])
+  @@index([user_id])
+  @@map("blocked_slots")
 }

@@ -569,6 +569,18 @@ async function validateJadwal(prismaClient, userId, slot_id, plot_id, excludeJad
     return { valid: false, status: 422, message: 'Jatah jam mengajar untuk mata pelajaran ini sudah habis!' };
   }
 
+  // 5. Validasi Blocked Slot (Slot Terkunci/Kustom)
+  const blockedSlot = await prismaClient.blockedSlot.findFirst({
+    where: {
+      user_id: userId,
+      slot_id: slot_id,
+      kelas_id: plot.kelas_id
+    }
+  });
+  if (blockedSlot) {
+    return { valid: false, status: 422, message: `Slot waktu ini sedang diblokir untuk kelas ini (${blockedSlot.label})!` };
+  }
+
   return { valid: true };
 }
 
@@ -944,6 +956,84 @@ router.post('/gurus/import', asyncHandler(async (req, res) => {
     guru: teacher,
     imported_count: importedCount
   });
+}));
+
+// ==========================================
+// 8. BLOCKED SLOTS (FITUR PREMIUM - KUSTOM BLOK PER KELAS)
+// ==========================================
+router.get('/blocked-slots', asyncHandler(async (req, res) => {
+  const blockedSlots = await prisma.blockedSlot.findMany({
+    where: { user_id: req.user.id }
+  });
+  res.json(blockedSlots);
+}));
+
+router.post('/blocked-slots', asyncHandler(async (req, res) => {
+  const { kelas_id, slot_id, label } = req.body;
+  if (!kelas_id || !slot_id || !label) {
+    return res.status(400).json({ error: 'Kelas ID, Slot ID, dan label wajib diisi.' });
+  }
+
+  const numericKelasId = parseInt(kelas_id);
+  const numericSlotId = parseInt(slot_id);
+
+  // Check if slot and kelas exist and belong to user
+  const verifiedKelas = await prisma.kelas.findFirst({ where: { id: numericKelasId, user_id: req.user.id } });
+  const verifiedSlot = await prisma.slot.findFirst({ where: { id: numericSlotId, user_id: req.user.id } });
+
+  if (!verifiedKelas || !verifiedSlot) {
+    return res.status(422).json({ error: 'Kelas atau Slot tidak valid.' });
+  }
+
+  // Check if there is an existing schedule in this slot for this class
+  const existingJadwal = await prisma.jadwal.findFirst({
+    where: {
+      user_id: req.user.id,
+      slot_id: numericSlotId,
+      plot: {
+        kelas_id: numericKelasId
+      }
+    }
+  });
+  if (existingJadwal) {
+    return res.status(400).json({ error: 'Tidak dapat mengunci slot yang sudah memiliki jadwal pelajaran!' });
+  }
+
+  const blockedSlot = await prisma.blockedSlot.upsert({
+    where: {
+      kelas_id_slot_id: {
+        kelas_id: numericKelasId,
+        slot_id: numericSlotId
+      }
+    },
+    update: {
+      label,
+      user_id: req.user.id
+    },
+    create: {
+      kelas_id: numericKelasId,
+      slot_id: numericSlotId,
+      label,
+      user_id: req.user.id
+    }
+  });
+
+  res.status(201).json(blockedSlot);
+}));
+
+router.delete('/blocked-slots/:id', asyncHandler(async (req, res) => {
+  const id = parseInt(req.params.id);
+
+  // Verify ownership
+  const targetBlockedSlot = await prisma.blockedSlot.findFirst({
+    where: { id, user_id: req.user.id }
+  });
+  if (!targetBlockedSlot) {
+    return res.status(404).json({ error: 'Kunci slot tidak ditemukan.' });
+  }
+
+  await prisma.blockedSlot.delete({ where: { id } });
+  res.json({ message: 'Kunci slot berhasil dihapus.' });
 }));
 
 export default router;

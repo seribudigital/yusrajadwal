@@ -230,8 +230,23 @@ router.post('/kelas', asyncHandler(async (req, res) => {
   if (!nama_kelas) {
     return res.status(400).json({ error: 'Nama kelas wajib diisi.' });
   }
+
+  // Check for duplicate name
+  const existingKelas = await prisma.kelas.findFirst({
+    where: {
+      user_id: req.user.id,
+      nama_kelas: {
+        equals: nama_kelas.trim(),
+        mode: 'insensitive'
+      }
+    }
+  });
+  if (existingKelas) {
+    return res.status(400).json({ error: 'Kelas dengan nama tersebut sudah terdaftar!' });
+  }
+
   const newKelas = await prisma.kelas.create({
-    data: { nama_kelas, user_id: req.user.id }
+    data: { nama_kelas: nama_kelas.trim(), user_id: req.user.id }
   });
   res.status(201).json(newKelas);
 }));
@@ -251,9 +266,26 @@ router.put('/kelas/:id', asyncHandler(async (req, res) => {
     return res.status(404).json({ error: 'Kelas tidak ditemukan.' });
   }
 
+  // Check for duplicate name (excluding this kelas itself)
+  const existingKelas = await prisma.kelas.findFirst({
+    where: {
+      user_id: req.user.id,
+      nama_kelas: {
+        equals: nama_kelas.trim(),
+        mode: 'insensitive'
+      },
+      NOT: {
+        id: id
+      }
+    }
+  });
+  if (existingKelas) {
+    return res.status(400).json({ error: 'Kelas dengan nama tersebut sudah terdaftar!' });
+  }
+
   const updatedKelas = await prisma.kelas.update({
     where: { id },
-    data: { nama_kelas }
+    data: { nama_kelas: nama_kelas.trim() }
   });
   res.json(updatedKelas);
 }));
@@ -289,8 +321,23 @@ router.post('/mapels', asyncHandler(async (req, res) => {
   if (!nama_mapel) {
     return res.status(400).json({ error: 'Nama mata pelajaran wajib diisi.' });
   }
+
+  // Check for duplicate name
+  const existingMapel = await prisma.mapel.findFirst({
+    where: {
+      user_id: req.user.id,
+      nama_mapel: {
+        equals: nama_mapel.trim(),
+        mode: 'insensitive'
+      }
+    }
+  });
+  if (existingMapel) {
+    return res.status(400).json({ error: 'Mata pelajaran dengan nama tersebut sudah terdaftar!' });
+  }
+
   const newMapel = await prisma.mapel.create({
-    data: { nama_mapel, kode_mapel, user_id: req.user.id }
+    data: { nama_mapel: nama_mapel.trim(), kode_mapel, user_id: req.user.id }
   });
   res.status(201).json(newMapel);
 }));
@@ -310,9 +357,26 @@ router.put('/mapels/:id', asyncHandler(async (req, res) => {
     return res.status(404).json({ error: 'Mata pelajaran tidak ditemukan.' });
   }
 
+  // Check for duplicate name (excluding this mapel itself)
+  const existingMapel = await prisma.mapel.findFirst({
+    where: {
+      user_id: req.user.id,
+      nama_mapel: {
+        equals: nama_mapel.trim(),
+        mode: 'insensitive'
+      },
+      NOT: {
+        id: id
+      }
+    }
+  });
+  if (existingMapel) {
+    return res.status(400).json({ error: 'Mata pelajaran dengan nama tersebut sudah terdaftar!' });
+  }
+
   const updatedMapel = await prisma.mapel.update({
     where: { id },
-    data: { nama_mapel, kode_mapel }
+    data: { nama_mapel: nama_mapel.trim(), kode_mapel }
   });
   res.json(updatedMapel);
 }));

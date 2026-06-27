@@ -444,9 +444,16 @@ function App() {
         body: JSON.stringify({ nama_guru: guruForm.nama_guru, nip: guruForm.nip }),
       });
       if (res.ok) {
+        const data = await res.json();
+        if (isEdit) {
+          setGurus(prev => prev.map(g => g.id === data.id ? data : g));
+          setPlots(prev => prev.map(p => p.guru_id === data.id ? { ...p, guru: data } : p));
+          setJadwals(prev => prev.map(j => j.plot?.guru_id === data.id ? { ...j, plot: { ...j.plot, guru: data } } : j));
+        } else {
+          setGurus(prev => [...prev, data].sort((a, b) => a.nama_guru.localeCompare(b.nama_guru)));
+        }
         showToast(`Guru berhasil ${isEdit ? 'diperbarui' : 'disimpan'}!`);
         setGuruForm({ id: null, nama_guru: '', nip: '' });
-        fetchData();
       } else {
         const data = await res.json();
         showToast(data.error || 'Gagal menyimpan guru.', 'error');
@@ -461,8 +468,11 @@ function App() {
     try {
       const res = await apiFetch(`${API_BASE}/gurus/${id}`, { method: 'DELETE' });
       if (res.ok) {
+        const deletedPlotIds = plots.filter(p => p.guru_id === id).map(p => p.id);
+        setJadwals(prev => prev.filter(j => !deletedPlotIds.includes(j.plot_id)));
+        setPlots(prev => prev.filter(p => p.guru_id !== id));
+        setGurus(prev => prev.filter(g => g.id !== id));
         showToast('Guru berhasil dihapus.');
-        fetchData();
       }
     } catch (err) {
       showToast('Gagal menghapus guru.', 'error');
@@ -483,9 +493,16 @@ function App() {
         body: JSON.stringify({ nama_kelas: kelasForm.nama_kelas }),
       });
       if (res.ok) {
+        const data = await res.json();
+        if (isEdit) {
+          setKelas(prev => prev.map(k => k.id === data.id ? data : k));
+          setPlots(prev => prev.map(p => p.kelas_id === data.id ? { ...p, kelas: data } : p));
+          setJadwals(prev => prev.map(j => j.plot?.kelas_id === data.id ? { ...j, plot: { ...j.plot, kelas: data } } : j));
+        } else {
+          setKelas(prev => [...prev, data].sort((a, b) => a.nama_kelas.localeCompare(b.nama_kelas)));
+        }
         showToast(`Kelas berhasil ${isEdit ? 'diperbarui' : 'disimpan'}!`);
         setKelasForm({ id: null, nama_kelas: '' });
-        fetchData();
       } else {
         const data = await res.json();
         showToast(data.error || 'Gagal menyimpan kelas.', 'error');
@@ -500,8 +517,11 @@ function App() {
     try {
       const res = await apiFetch(`${API_BASE}/kelas/${id}`, { method: 'DELETE' });
       if (res.ok) {
+        const deletedPlotIds = plots.filter(p => p.kelas_id === id).map(p => p.id);
+        setJadwals(prev => prev.filter(j => !deletedPlotIds.includes(j.plot_id)));
+        setPlots(prev => prev.filter(p => p.kelas_id !== id));
+        setKelas(prev => prev.filter(k => k.id !== id));
         showToast('Kelas berhasil dihapus.');
-        fetchData();
       }
     } catch (err) {
       showToast('Gagal menghapus kelas.', 'error');
@@ -522,9 +542,16 @@ function App() {
         body: JSON.stringify({ nama_mapel: mapelForm.nama_mapel, kode_mapel: mapelForm.kode_mapel }),
       });
       if (res.ok) {
+        const data = await res.json();
+        if (isEdit) {
+          setMapels(prev => prev.map(m => m.id === data.id ? data : m));
+          setPlots(prev => prev.map(p => p.mapel_id === data.id ? { ...p, mapel: data } : p));
+          setJadwals(prev => prev.map(j => j.plot?.mapel_id === data.id ? { ...j, plot: { ...j.plot, mapel: data } } : j));
+        } else {
+          setMapels(prev => [...prev, data].sort((a, b) => a.nama_mapel.localeCompare(b.nama_mapel)));
+        }
         showToast(`Mata pelajaran berhasil ${isEdit ? 'diperbarui' : 'disimpan'}!`);
         setMapelForm({ id: null, nama_mapel: '', kode_mapel: '' });
-        fetchData();
       } else {
         const data = await res.json();
         showToast(data.error || 'Gagal menyimpan mapel.', 'error');
@@ -539,8 +566,11 @@ function App() {
     try {
       const res = await apiFetch(`${API_BASE}/mapels/${id}`, { method: 'DELETE' });
       if (res.ok) {
+        const deletedPlotIds = plots.filter(p => p.mapel_id === id).map(p => p.id);
+        setJadwals(prev => prev.filter(j => !deletedPlotIds.includes(j.plot_id)));
+        setPlots(prev => prev.filter(p => p.mapel_id !== id));
+        setMapels(prev => prev.filter(m => m.id !== id));
         showToast('Mata pelajaran berhasil dihapus.');
-        fetchData();
       }
     } catch (err) {
       showToast('Gagal menghapus mapel.', 'error');
@@ -564,9 +594,10 @@ function App() {
         }),
       });
       if (res.ok) {
+        const data = await res.json();
+        setSlots(prev => prev.map(s => s.id === data.id ? data : s));
         showToast('Waktu slot berhasil diperbarui!');
         setEditingSlotId(null);
-        fetchData();
       } else {
         const data = await res.json();
         showToast(data.error || 'Gagal memperbarui slot.', 'error');
@@ -595,9 +626,14 @@ function App() {
         }),
       });
       if (res.ok) {
+        const data = await res.json();
+        if (isEdit) {
+          setPlots(prev => prev.map(p => p.id === data.id ? data : p));
+        } else {
+          setPlots(prev => [...prev, data]);
+        }
         showToast(`Plot tugas mengajar berhasil ${isEdit ? 'diperbarui' : 'disimpan'}!`);
         setPlotForm({ id: null, guru_id: '', mapel_id: '', kelas_id: '', beban_jam: '' });
-        fetchData();
       } else {
         const data = await res.json();
         showToast(data.error || 'Gagal menyimpan plot.', 'error');
@@ -624,8 +660,9 @@ function App() {
     try {
       const res = await apiFetch(`${API_BASE}/plots/${id}`, { method: 'DELETE' });
       if (res.ok) {
+        setJadwals(prev => prev.filter(j => j.plot_id !== id));
+        setPlots(prev => prev.filter(p => p.id !== id));
         showToast('Plot mengajar berhasil dihapus.');
-        fetchData();
       }
     } catch (err) {
       showToast('Gagal menghapus plot.', 'error');

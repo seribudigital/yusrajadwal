@@ -32,6 +32,7 @@ model Guru {
   user_id   Int
   user      User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
+  @@index([user_id])
   @@map("gurus")
 }
 
@@ -42,6 +43,7 @@ model Kelas {
   user_id   Int
   user      User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
+  @@index([user_id])
   @@map("kelas")
 }
 
@@ -53,6 +55,7 @@ model Mapel {
   user_id   Int
   user      User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
+  @@index([user_id])
   @@map("mapels")
 }
 
@@ -68,6 +71,7 @@ model Slot {
   user_id      Int
   user         User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
+  @@index([user_id])
   @@map("slots")
 }
 
@@ -84,6 +88,7 @@ model Plot {
   user_id   Int
   user      User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
+  @@index([user_id])
   @@map("plots")
 }
 
@@ -96,6 +101,9 @@ model Jadwal {
   user_id Int
   user    User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
+  @@index([user_id])
+  @@index([slot_id])
+  @@index([plot_id])
   @@map("jadwals")
 }
 
@@ -114,5 +122,6 @@ model SchoolProfile {
   user_id              Int
   user                 User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
+  @@index([user_id])
   @@map("school_profiles")
 }

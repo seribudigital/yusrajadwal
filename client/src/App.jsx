@@ -5,6 +5,15 @@ const API_BASE = import.meta.env.VITE_API_BASE ||
     ? 'http://localhost:5000/api' 
     : '/api');
 
+const getBlockedIcon = (label) => {
+  if (!label) return '🔒';
+  const l = label.toLowerCase();
+  if (l.includes('upacara')) return '🇮🇩';
+  if (l.includes('sholat') || l.includes('dhuha') || l.includes('shalat')) return '🕌';
+  if (l.includes('istirahat')) return '⏰';
+  return '🔒';
+};
+
 function App() {
   // Authentication States
   const [token, setToken] = useState(localStorage.getItem('token') || null);
@@ -1443,7 +1452,7 @@ function App() {
                                     title={`Diberlakukan Kunci Slot: ${blocked.label}`}
                                   >
                                     <div className="font-bold text-xs text-slate-300 leading-tight flex items-center gap-1.5">
-                                      🚫 {blocked.label}
+                                      {getBlockedIcon(blocked.label)} {blocked.label}
                                     </div>
                                     <div className="text-[8px] text-slate-500 mt-1.5">
                                       ⏰ {slot.jam_mulai} - {slot.jam_selesai}
@@ -2351,7 +2360,7 @@ function App() {
                                     </div>
                                   ) : blocked ? (
                                     <div className="font-bold text-[10px] text-slate-700 uppercase italic">
-                                      🚫 {blocked.label}
+                                      {getBlockedIcon(blocked.label)} {blocked.label}
                                     </div>
                                   ) : (
                                     <span className="text-slate-350 font-normal italic">-</span>
@@ -2914,7 +2923,7 @@ function App() {
                     <div className="border-t border-slate-800 pt-2">
                       <strong className="text-slate-200">Hasil:</strong>
                       <p className="text-slate-400 mt-1">
-                        Kotak akan otomatis tersegel (🚫) dan mencegah pengisian jadwal secara tidak sengaja di kelas tersebut. Klik ikon gembok lagi (🔓) untuk membukanya kembali.
+                        Kotak akan otomatis tersegel dengan ikon yang sesuai (misal: 🇮🇩 Upacara, 🕌 Shalat Dhuha, atau 🔒 Kunci Umum) untuk mencegah pengisian jadwal secara tidak sengaja di kelas tersebut. Klik ikon gembok lagi (🔓) untuk membukanya kembali.
                       </p>
                     </div>
                   </div>
@@ -2983,12 +2992,12 @@ function App() {
                 </div>
               </div>
 
-              {/* Card 5: Ekspor & Impor */}
+              {/* Card 5: Ekspor & Impor Jadwal Guru */}
               <div className="bg-slate-950 border border-slate-800 p-5 rounded-xl flex flex-col justify-between hover:border-slate-700 transition-colors">
                 <div>
                   <div className="flex justify-between items-start gap-2 mb-3">
                     <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-                      <span>📥</span> 5. Fitur Ekspor & Impor Data (Manajemen Offline)
+                      <span>📥</span> 5. Fitur Ekspor & Impor Jadwal Guru (Format JSON)
                     </h3>
                     <span className="text-[10px] bg-cyan-950 text-cyan-400 border border-cyan-900/50 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
                       Integrasi
@@ -2996,19 +3005,19 @@ function App() {
                   </div>
                   <div className="flex flex-col gap-3 text-xs text-slate-350">
                     <div>
-                      <strong className="text-slate-200">Ekspor Jadwal (Cetak/Backup):</strong>
+                      <strong className="text-slate-200">Ekspor Jadwal Guru (Backup):</strong>
                       <p className="text-slate-400 mt-1">
-                        Setelah jadwal selesai disusun, Anda dapat mengunduh seluruh master jadwal dalam bentuk file Excel/CSV melalui tombol Ekspor di halaman Rekapitulasi untuk arsip sekolah atau dicetak langsung.
+                        Anda dapat mencadangkan jadwal guru tertentu ke file `.json`. Tombol **Ekspor** ini dapat ditemukan di menu *Data Master &rarr; Guru* di baris data guru, atau langsung di sidebar kiri tab *Penyusunan Jadwal* setelah memilih guru.
                       </p>
                     </div>
                     <div>
-                      <strong className="text-slate-200">Impor Guru & Mapel Offline:</strong>
+                      <strong className="text-slate-200">Impor Jadwal Guru (Sekolah Lain):</strong>
                       <p className="text-slate-400 mt-1">
-                        Jika Anda memiliki banyak data guru, cukup unduh format template Excel yang disediakan, isi data nama guru dan kode mapel di laptop Anda, lalu unggah kembali melalui menu Impor untuk menghemat waktu.
+                        Untuk memindahkan jadwal mengajar guru honorer atau guru lintas sekolah, Anda dapat mengunggah file `.json` jadwal tersebut di bagian **Impor Jadwal Guru (Sekolah Lain)** di bawah tabel Guru.
                       </p>
                     </div>
                     <div className="bg-rose-950/30 border border-rose-900/50 p-2.5 rounded-lg text-rose-300">
-                      <strong>⚠️ Catatan Penting:</strong> Pastikan format nama kolom (Header) pada file Excel/CSV wajib sama persis dengan template agar sistem tidak gagal membaca data. Sistem juga otomatis mendeteksi jika ada nama yang terindikasi duplikat.
+                      <strong>⚠️ Format Data JSON:</strong> Pastikan format file `.json` tidak diubah secara manual agar sistem dapat membaca array `occupied_slots` dan memblokir waktu mengajar guru tersebut secara akurat di database.
                     </div>
                   </div>
                 </div>
@@ -3029,17 +3038,17 @@ function App() {
                     <div>
                       <strong className="text-slate-200">Logika Kelas Sibuk:</strong>
                       <p className="text-slate-400 mt-1">
-                        Fitur ini digunakan untuk mengunci slot waktu bagi guru yang memiliki keterbatasan waktu mengajar (misalnya guru honorer yang hanya bisa mengajar di hari tertentu, atau guru yang mengajar di dua sekolah berbeda).
+                        Fitur ini mengunci slot waktu bagi guru yang memiliki keterbatasan waktu (misal: guru honorer yang mengajar di beberapa sekolah). Jadwal dari luar sekolah disimpan dalam kelas khusus bernama <code className="bg-slate-900 px-1 py-0.5 rounded text-indigo-400 font-mono text-[11px]">OFFLINE</code>.
                       </p>
                     </div>
                     <div>
-                      <strong className="text-slate-200">Cara Kerja Sistem:</strong>
+                      <strong className="text-slate-200">Visualisasi Indikator Grid:</strong>
                       <p className="text-slate-400 mt-1">
-                        Ketika Anda memasukkan data batasan mengajar guru (Jadwal Offline), sistem secara otomatis akan menandai guru tersebut sebagai "Sibuk/Busy" pada jam-jam yang telah ditentukan.
+                        Saat menyusun jadwal, jika guru yang Anda filter sedang mengajar di kelas reguler lain, slot grid akan berkedip merah dengan label <span className="text-rose-455 font-bold">⚠️ SIBUK</span>. Jika bentrok dengan jadwal luar sekolah, slot akan ditandai dengan pola garis abu-abu <span className="text-slate-300 font-bold">❌ GURU BLOCKOUT</span>.
                       </p>
                     </div>
                     <div className="bg-indigo-950/30 border border-indigo-900/50 p-2.5 rounded-lg text-indigo-300">
-                      <strong>Proteksi Bentrok Otomatis:</strong> Saat Anda menyusun jadwal di Grid Interaktif, sistem akan langsung memblokir aktivitas drag & drop jika Anda mencoba memasukkan guru tersebut ke slot waktu sibuknya, lengkap dengan peringatan sistem demi menghindari salah urus jadwal.
+                      <strong>Proteksi Bentrok Otomatis:</strong> Sistem secara real-time memblokir aksi drag & drop ke slot sibuk tersebut dan mencegah penumpukan jadwal guru demi menghindari bentrok mengajar.
                     </div>
                   </div>
                 </div>

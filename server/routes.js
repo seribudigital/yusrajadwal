@@ -180,7 +180,37 @@ router.delete('/gurus/:id', asyncHandler(async (req, res) => {
     return res.status(404).json({ error: 'Guru tidak ditemukan.' });
   }
 
+  // Find all plots associated with this guru
+  const plotsWithGuru = await prisma.plot.findMany({
+    where: {
+      gurus: {
+        some: {
+          id: id
+        }
+      }
+    }
+  });
+
   await prisma.guru.delete({ where: { id } });
+
+  // Clean up plots that now have 0 gurus left
+  const remainingPlots = await prisma.plot.findMany({
+    where: {
+      id: { in: plotsWithGuru.map(p => p.id) }
+    },
+    include: {
+      gurus: true
+    }
+  });
+  const plotsToDelete = remainingPlots.filter(p => p.gurus.length === 0).map(p => p.id);
+  if (plotsToDelete.length > 0) {
+    await prisma.plot.deleteMany({
+      where: {
+        id: { in: plotsToDelete }
+      }
+    });
+  }
+
   res.json({ message: 'Guru berhasil dihapus.' });
 }));
 
@@ -352,7 +382,7 @@ router.get('/plots', asyncHandler(async (req, res) => {
   const plots = await prisma.plot.findMany({
     where: { user_id: req.user.id },
     include: {
-      guru: true,
+      gurus: true,
       mapel: true,
       kelas: true
     },
@@ -362,25 +392,40 @@ router.get('/plots', asyncHandler(async (req, res) => {
 }));
 
 router.post('/plots', asyncHandler(async (req, res) => {
-  const { guru_id, mapel_id, kelas_id, beban_jam } = req.body;
+  const { guru_id, guru_ids, mapel_id, kelas_id, beban_jam } = req.body;
   
-  if (!guru_id || !mapel_id || !kelas_id || beban_jam === undefined) {
+  let numericGuruIds = [];
+  if (Array.isArray(guru_ids)) {
+    numericGuruIds = guru_ids.map(id => parseInt(id));
+  } else if (guru_id) {
+    numericGuruIds = [parseInt(guru_id)];
+  }
+
+  if (numericGuruIds.length === 0 || !mapel_id || !kelas_id || beban_jam === undefined) {
     return res.status(400).json({ error: 'Guru, Mapel, Kelas, dan Beban Jam wajib diisi.' });
   }
 
-  const numericGuruId = parseInt(guru_id);
   const numericMapelId = parseInt(mapel_id);
   const numericKelasId = parseInt(kelas_id);
 
   // Check unique combination scoped to user
-  const existingPlot = await prisma.plot.findFirst({
+  const existingPlots = await prisma.plot.findMany({
     where: {
       user_id: req.user.id,
-      guru_id: numericGuruId,
       mapel_id: numericMapelId,
       kelas_id: numericKelasId
+    },
+    include: {
+      gurus: true
     }
   });
+
+  const existingPlot = existingPlots.find(p => {
+    const pIds = p.gurus.map(g => g.id).sort();
+    const targetIds = [...numericGuruIds].sort();
+    return pIds.length === targetIds.length && pIds.every((val, index) => val === targetIds[index]);
+  });
+
   if (existingPlot) {
     return res.status(400).json({ 
       error: 'Kombinasi Guru, Mata Pelajaran, dan Kelas ini sudah terdaftar!',
@@ -389,24 +434,26 @@ router.post('/plots', asyncHandler(async (req, res) => {
   }
 
   // Verify relation fields exist and belong to user
-  const verifiedGuru = await prisma.guru.findFirst({ where: { id: numericGuruId, user_id: req.user.id } });
+  const verifiedGurus = await prisma.guru.findMany({ where: { id: { in: numericGuruIds }, user_id: req.user.id } });
   const verifiedMapel = await prisma.mapel.findFirst({ where: { id: numericMapelId, user_id: req.user.id } });
   const verifiedKelas = await prisma.kelas.findFirst({ where: { id: numericKelasId, user_id: req.user.id } });
 
-  if (!verifiedGuru || !verifiedMapel || !verifiedKelas) {
+  if (verifiedGurus.length !== numericGuruIds.length || !verifiedMapel || !verifiedKelas) {
     return res.status(422).json({ error: 'Guru, Mapel, atau Kelas tidak valid.' });
   }
 
   const newPlot = await prisma.plot.create({
     data: {
-      guru_id: numericGuruId,
+      gurus: {
+        connect: numericGuruIds.map(id => ({ id }))
+      },
       mapel_id: numericMapelId,
       kelas_id: numericKelasId,
       beban_jam: parseInt(beban_jam),
       user_id: req.user.id
     },
     include: {
-      guru: true,
+      gurus: true,
       mapel: true,
       kelas: true
     }
@@ -416,13 +463,19 @@ router.post('/plots', asyncHandler(async (req, res) => {
 
 router.put('/plots/:id', asyncHandler(async (req, res) => {
   const id = parseInt(req.params.id);
-  const { guru_id, mapel_id, kelas_id, beban_jam } = req.body;
+  const { guru_id, guru_ids, mapel_id, kelas_id, beban_jam } = req.body;
 
-  if (!guru_id || !mapel_id || !kelas_id || beban_jam === undefined) {
+  let numericGuruIds = [];
+  if (Array.isArray(guru_ids)) {
+    numericGuruIds = guru_ids.map(id => parseInt(id));
+  } else if (guru_id) {
+    numericGuruIds = [parseInt(guru_id)];
+  }
+
+  if (numericGuruIds.length === 0 || !mapel_id || !kelas_id || beban_jam === undefined) {
     return res.status(400).json({ error: 'Guru, Mapel, Kelas, dan Beban Jam wajib diisi.' });
   }
 
-  const numericGuruId = parseInt(guru_id);
   const numericMapelId = parseInt(mapel_id);
   const numericKelasId = parseInt(kelas_id);
 
@@ -435,15 +488,24 @@ router.put('/plots/:id', asyncHandler(async (req, res) => {
   }
 
   // Check unique combination excluding self, scoped to user
-  const existingPlot = await prisma.plot.findFirst({
+  const existingPlots = await prisma.plot.findMany({
     where: {
       user_id: req.user.id,
-      guru_id: numericGuruId,
       mapel_id: numericMapelId,
       kelas_id: numericKelasId,
       NOT: { id: id }
+    },
+    include: {
+      gurus: true
     }
   });
+
+  const existingPlot = existingPlots.find(p => {
+    const pIds = p.gurus.map(g => g.id).sort();
+    const targetIds = [...numericGuruIds].sort();
+    return pIds.length === targetIds.length && pIds.every((val, index) => val === targetIds[index]);
+  });
+
   if (existingPlot) {
     return res.status(400).json({ 
       error: 'Kombinasi Guru, Mata Pelajaran, dan Kelas ini sudah terdaftar!',
@@ -452,24 +514,26 @@ router.put('/plots/:id', asyncHandler(async (req, res) => {
   }
 
   // Verify relation fields exist and belong to user
-  const verifiedGuru = await prisma.guru.findFirst({ where: { id: numericGuruId, user_id: req.user.id } });
+  const verifiedGurus = await prisma.guru.findMany({ where: { id: { in: numericGuruIds }, user_id: req.user.id } });
   const verifiedMapel = await prisma.mapel.findFirst({ where: { id: numericMapelId, user_id: req.user.id } });
   const verifiedKelas = await prisma.kelas.findFirst({ where: { id: numericKelasId, user_id: req.user.id } });
 
-  if (!verifiedGuru || !verifiedMapel || !verifiedKelas) {
+  if (verifiedGurus.length !== numericGuruIds.length || !verifiedMapel || !verifiedKelas) {
     return res.status(422).json({ error: 'Guru, Mapel, atau Kelas tidak valid.' });
   }
 
   const updatedPlot = await prisma.plot.update({
     where: { id },
     data: {
-      guru_id: numericGuruId,
+      gurus: {
+        set: numericGuruIds.map(id => ({ id }))
+      },
       mapel_id: numericMapelId,
       kelas_id: numericKelasId,
       beban_jam: parseInt(beban_jam)
     },
     include: {
-      guru: true,
+      gurus: true,
       mapel: true,
       kelas: true
     }
@@ -515,7 +579,7 @@ async function validateJadwal(prismaClient, userId, slot_id, plot_id, excludeJad
   const plot = await prismaClient.plot.findFirst({
     where: { id: plot_id, user_id: userId },
     include: {
-      guru: true,
+      gurus: true,
       kelas: true,
       mapel: true
     }
@@ -526,18 +590,32 @@ async function validateJadwal(prismaClient, userId, slot_id, plot_id, excludeJad
 
   // 2. Validasi Guru Bentrok (Anti-Double Mengajar)
   // Check if this teacher is scheduled in another class at the same slot
+  const plotGuruIds = plot.gurus.map(g => g.id);
   const teacherClash = await prismaClient.jadwal.findFirst({
     where: {
       user_id: userId,
       slot_id: slot_id,
       plot: {
-        guru_id: plot.guru_id
+        gurus: {
+          some: {
+            id: { in: plotGuruIds }
+          }
+        }
       },
       NOT: excludeJadwalId ? { id: excludeJadwalId } : undefined
+    },
+    include: {
+      plot: {
+        include: {
+          gurus: true
+        }
+      }
     }
   });
   if (teacherClash) {
-    return { valid: false, status: 422, message: `Guru ${plot.guru.nama_guru} sudah mengajar di kelas lain pada jam ini!` };
+    const clashingTeacher = teacherClash.plot.gurus.find(g => plotGuruIds.includes(g.id));
+    const clashingTeacherName = clashingTeacher ? clashingTeacher.nama_guru : 'Guru';
+    return { valid: false, status: 422, message: `Guru ${clashingTeacherName} sudah mengajar di kelas lain pada jam ini!` };
   }
 
   // 3. Validasi Kelas Bentrok
@@ -592,7 +670,7 @@ router.get('/jadwals', asyncHandler(async (req, res) => {
       slot: true,
       plot: {
         include: {
-          guru: true,
+          gurus: true,
           mapel: true,
           kelas: true
         }
@@ -629,7 +707,7 @@ router.post('/jadwals', asyncHandler(async (req, res) => {
       slot: true,
       plot: {
         include: {
-          guru: true,
+          gurus: true,
           mapel: true,
           kelas: true
         }
@@ -676,7 +754,7 @@ router.put('/jadwals/:id', asyncHandler(async (req, res) => {
       slot: true,
       plot: {
         include: {
-          guru: true,
+          gurus: true,
           mapel: true,
           kelas: true
         }
@@ -896,16 +974,22 @@ router.post('/gurus/import', asyncHandler(async (req, res) => {
   // 4. Find or create Plot for the offline blockout
   let offlinePlot = await prisma.plot.findFirst({
     where: {
-      guru_id: teacher.id,
       kelas_id: offlineClass.id,
       mapel_id: offlineMapel.id,
+      gurus: {
+        some: {
+          id: teacher.id
+        }
+      },
       user_id: req.user.id
     }
   });
   if (!offlinePlot) {
     offlinePlot = await prisma.plot.create({
       data: {
-        guru_id: teacher.id,
+        gurus: {
+          connect: { id: teacher.id }
+        },
         kelas_id: offlineClass.id,
         mapel_id: offlineMapel.id,
         beban_jam: 100,
@@ -932,7 +1016,11 @@ router.post('/gurus/import', asyncHandler(async (req, res) => {
         where: {
           slot_id: matchedSlot.id,
           plot: {
-            guru_id: teacher.id
+            gurus: {
+              some: {
+                id: teacher.id
+              }
+            }
           },
           user_id: req.user.id
         }

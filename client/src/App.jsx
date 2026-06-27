@@ -40,7 +40,7 @@ function App() {
   const [guruForm, setGuruForm] = useState({ id: null, nama_guru: '', nip: '' });
   const [kelasForm, setKelasForm] = useState({ id: null, nama_kelas: '' });
   const [mapelForm, setMapelForm] = useState({ id: null, nama_mapel: '', kode_mapel: '' });
-  const [plotForm, setPlotForm] = useState({ id: null, guru_id: '', mapel_id: '', kelas_id: '', beban_jam: '' });
+  const [plotForm, setPlotForm] = useState({ id: null, guru_ids: [], mapel_id: '', kelas_id: '', beban_jam: '' });
   const [editingSlotId, setEditingSlotId] = useState(null);
   const [editingSlotData, setEditingSlotData] = useState({ jam_mulai: '', jam_selesai: '' });
 
@@ -293,13 +293,17 @@ function App() {
     }
 
     // 2. Teacher clash check
-    const teacherClash = jadwals.find(j =>
-      j.slot_id === slotId &&
-      j.plot?.guru_id === plot.guru_id &&
-      (!isMove || j.id !== sourceJadwalId)
-    );
+    const plotGuruIds = plot.gurus ? plot.gurus.map(g => g.id) : (plot.guru_id ? [plot.guru_id] : []);
+    const teacherClash = jadwals.find(j => {
+      if (j.slot_id !== slotId || (isMove && j.id === sourceJadwalId) || !j.plot) return false;
+      const scheduledGuruIds = j.plot.gurus ? j.plot.gurus.map(g => g.id) : (j.plot.guru_id ? [j.plot.guru_id] : []);
+      return plotGuruIds.some(id => scheduledGuruIds.includes(id));
+    });
     if (teacherClash) {
-      showToast(`Guru ${plot.guru?.nama_guru || ''} sudah mengajar di kelas lain pada jam ini!`, 'error');
+      const clashingGuruIds = teacherClash.plot.gurus ? teacherClash.plot.gurus.map(g => g.id) : (teacherClash.plot.guru_id ? [teacherClash.plot.guru_id] : []);
+      const clashingTeacherId = plotGuruIds.find(id => clashingGuruIds.includes(id));
+      const clashingTeacher = (plot.gurus || []).find(g => g.id === clashingTeacherId) || plot.guru || { nama_guru: 'Guru' };
+      showToast(`Guru ${clashingTeacher.nama_guru} sudah mengajar di kelas lain pada jam ini!`, 'error');
       return;
     }
 
@@ -606,8 +610,31 @@ function App() {
         const data = await res.json();
         if (isEdit) {
           setGurus(prev => prev.map(g => g.id === data.id ? data : g));
-          setPlots(prev => prev.map(p => p.guru_id === data.id ? { ...p, guru: data } : p));
-          setJadwals(prev => prev.map(j => j.plot?.guru_id === data.id ? { ...j, plot: { ...j.plot, guru: data } } : j));
+          setPlots(prev => prev.map(p => {
+            const hasGuru = p.gurus?.some(g => g.id === data.id);
+            if (hasGuru || p.guru_id === data.id) {
+              return {
+                ...p,
+                guru: p.guru?.id === data.id ? data : p.guru,
+                gurus: p.gurus ? p.gurus.map(g => g.id === data.id ? data : g) : [data]
+              };
+            }
+            return p;
+          }));
+          setJadwals(prev => prev.map(j => {
+            const hasGuru = j.plot?.gurus?.some(g => g.id === data.id);
+            if (hasGuru || j.plot?.guru_id === data.id) {
+              return {
+                ...j,
+                plot: {
+                  ...j.plot,
+                  guru: j.plot.guru?.id === data.id ? data : j.plot.guru,
+                  gurus: j.plot.gurus ? j.plot.gurus.map(g => g.id === data.id ? data : g) : [data]
+                }
+              };
+            }
+            return j;
+          }));
         } else {
           setGurus(prev => [...prev, data].sort((a, b) => a.nama_guru.localeCompare(b.nama_guru)));
         }
@@ -627,9 +654,20 @@ function App() {
     try {
       const res = await apiFetch(`${API_BASE}/gurus/${id}`, { method: 'DELETE' });
       if (res.ok) {
-        const deletedPlotIds = plots.filter(p => p.guru_id === id).map(p => p.id);
+        const deletedPlotIds = plots.filter(p => {
+          const nextGurus = p.gurus ? p.gurus.filter(g => g.id !== id) : [];
+          return nextGurus.length === 0;
+        }).map(p => p.id);
         setJadwals(prev => prev.filter(j => !deletedPlotIds.includes(j.plot_id)));
-        setPlots(prev => prev.filter(p => p.guru_id !== id));
+        setPlots(prev => prev.map(p => {
+          if (p.gurus) {
+            return {
+              ...p,
+              gurus: p.gurus.filter(g => g.id !== id)
+            };
+          }
+          return p;
+        }).filter(p => p.gurus ? p.gurus.length > 0 : p.guru_id !== id));
         setGurus(prev => prev.filter(g => g.id !== id));
         showToast('Guru berhasil dihapus.');
       }
@@ -773,18 +811,26 @@ function App() {
     const url = isEdit ? `${API_BASE}/plots/${plotForm.id}` : `${API_BASE}/plots`;
     const method = isEdit ? 'PUT' : 'POST';
 
-    const numericGuruId = parseInt(plotForm.guru_id);
+    const numericGuruIds = (plotForm.guru_ids || []).map(id => parseInt(id));
     const numericMapelId = parseInt(plotForm.mapel_id);
     const numericKelasId = parseInt(plotForm.kelas_id);
     const numericBebanJam = parseInt(plotForm.beban_jam);
 
+    if (numericGuruIds.length === 0) {
+      showToast('Pilih setidaknya satu guru!', 'error');
+      return;
+    }
+
     // === CLIENT-SIDE VALIDATION (instant duplicate check) ===
-    const existingPlot = plots.find(p =>
-      p.guru_id === numericGuruId &&
-      p.mapel_id === numericMapelId &&
-      p.kelas_id === numericKelasId &&
-      (!isEdit || p.id !== plotForm.id)
-    );
+    const existingPlot = plots.find(p => {
+      if (p.mapel_id !== numericMapelId || p.kelas_id !== numericKelasId || (isEdit && p.id === plotForm.id)) {
+        return false;
+      }
+      const existingIds = p.gurus ? p.gurus.map(g => g.id).sort() : (p.guru_id ? [p.guru_id].sort() : []);
+      const targetIds = [...numericGuruIds].sort();
+      return existingIds.length === targetIds.length && existingIds.every((val, index) => val === targetIds[index]);
+    });
+
     if (existingPlot) {
       showToast('Kombinasi Guru, Mata Pelajaran, dan Kelas ini sudah terdaftar!', 'error');
       setHighlightedPlotId(existingPlot.id);
@@ -797,17 +843,18 @@ function App() {
     }
 
     // === BUILD OPTIMISTIC PLOT from local state ===
-    const guruObj = gurus.find(g => g.id === numericGuruId);
+    const guruObjs = gurus.filter(g => numericGuruIds.includes(g.id));
     const mapelObj = mapels.find(m => m.id === numericMapelId);
     const kelasObj = kelas.find(k => k.id === numericKelasId);
     const tempId = -Date.now();
     const optimisticPlot = {
       id: isEdit ? plotForm.id : tempId,
-      guru_id: numericGuruId,
+      guru_id: numericGuruIds[0] || null,
+      gurus: guruObjs,
       mapel_id: numericMapelId,
       kelas_id: numericKelasId,
       beban_jam: numericBebanJam,
-      guru: guruObj || null,
+      guru: guruObjs[0] || null,
       mapel: mapelObj || null,
       kelas: kelasObj || null,
       user_id: null,
@@ -821,7 +868,7 @@ function App() {
       setPlots(prev => [...prev, optimisticPlot]);
     }
     showToast(`Plot tugas mengajar berhasil ${isEdit ? 'diperbarui' : 'disimpan'}!`);
-    setPlotForm({ id: null, guru_id: '', mapel_id: '', kelas_id: '', beban_jam: '' });
+    setPlotForm({ id: null, guru_ids: [], mapel_id: '', kelas_id: '', beban_jam: '' });
 
     // === SYNC WITH SERVER in background ===
     try {
@@ -829,7 +876,8 @@ function App() {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          guru_id: numericGuruId,
+          guru_id: numericGuruIds[0],
+          guru_ids: numericGuruIds,
           mapel_id: numericMapelId,
           kelas_id: numericKelasId,
           beban_jam: numericBebanJam,
@@ -898,7 +946,7 @@ function App() {
   // Filter plots for current selected class
   const activeClassPlots = plots.filter((p) => p.kelas_id === Number(selectedKelasId));
   const visibleClassPlots = selectedFilterGuruId
-    ? activeClassPlots.filter((p) => p.guru_id === Number(selectedFilterGuruId))
+    ? activeClassPlots.filter((p) => p.gurus ? p.gurus.some(g => g.id === Number(selectedFilterGuruId)) : p.guru_id === Number(selectedFilterGuruId))
     : activeClassPlots;
 
   // Extract unique teachers from activeClassPlots
@@ -906,7 +954,14 @@ function App() {
     const seen = new Set();
     const list = [];
     activeClassPlots.forEach((p) => {
-      if (p.guru && !seen.has(p.guru_id)) {
+      if (p.gurus) {
+        p.gurus.forEach(g => {
+          if (!seen.has(g.id)) {
+            seen.add(g.id);
+            list.push(g);
+          }
+        });
+      } else if (p.guru && !seen.has(p.guru_id)) {
         seen.add(p.guru_id);
         list.push(p.guru);
       }
@@ -1318,7 +1373,7 @@ function App() {
                               ? jadwals.find(
                                   (j) =>
                                     j.slot_id === slot.id &&
-                                    j.plot.guru_id === Number(selectedFilterGuruId) &&
+                                    (j.plot.gurus ? j.plot.gurus.some(g => g.id === Number(selectedFilterGuruId)) : j.plot.guru_id === Number(selectedFilterGuruId)) &&
                                     j.plot.kelas_id !== Number(selectedKelasId)
                                 )
                               : null;
@@ -1340,7 +1395,7 @@ function App() {
                                 }}
                                 className={`p-2 border-r border-slate-800/30 relative group transition-all duration-200 ${
                                   !isBlocked && isDraggedOver ? 'bg-indigo-950/60 ring-2 ring-indigo-500 border-indigo-500' : ''
-                                } ${
+                                }  ${
                                   !isBlocked && isSuccessDrop ? 'bg-emerald-950/60 ring-2 ring-emerald-500 border-emerald-500 scale-[0.98]' : ''
                                 }`}
                               >
@@ -1355,8 +1410,8 @@ function App() {
                                       {scheduled.plot.mapel.nama_mapel}
                                     </div>
                                     {/* Teacher */}
-                                    <div className="text-[10px] text-slate-300 mt-1 font-medium truncate">
-                                      👨‍🏫 {scheduled.plot.guru.nama_guru}
+                                    <div className="text-[10px] text-slate-300 mt-1 font-medium truncate" title={scheduled.plot.gurus ? scheduled.plot.gurus.map(g => g.nama_guru).join(', ') : (scheduled.plot.guru?.nama_guru || '')}>
+                                      👨‍🏫 {scheduled.plot.gurus && scheduled.plot.gurus.length > 0 ? scheduled.plot.gurus.map(g => g.nama_guru).join(', ') : (scheduled.plot.guru?.nama_guru || '')}
                                     </div>
                                     {/* Individual slot times if different */}
                                     <div className="text-[8px] text-slate-500 mt-1">
@@ -1479,8 +1534,8 @@ function App() {
                               </span>
                             </div>
                             
-                            <div className="text-[10px] text-slate-400 mt-2 font-medium truncate">
-                              👨‍🏫 {plot.guru.nama_guru}
+                            <div className="text-[10px] text-slate-400 mt-2 font-medium truncate" title={plot.gurus ? plot.gurus.map(g => g.nama_guru).join(', ') : (plot.guru?.nama_guru || '')}>
+                              👨‍🏫 {plot.gurus && plot.gurus.length > 0 ? plot.gurus.map(g => g.nama_guru).join(', ') : (plot.guru?.nama_guru || '')}
                             </div>
                             
                             <div className="text-[9px] text-slate-500 mt-1 flex justify-between">
@@ -1950,19 +2005,33 @@ function App() {
                   
                   {/* Plot Form */}
                   <form onSubmit={savePlot} className="bg-slate-950 border border-slate-800 p-4 rounded-xl flex flex-wrap gap-4 mb-6">
-                    <div className="flex-1 min-w-[150px] flex flex-col gap-1.5">
-                      <label className="text-xs font-semibold text-slate-400">Guru</label>
-                      <select
-                        value={plotForm.guru_id}
-                        onChange={(e) => setPlotForm({ ...plotForm, guru_id: e.target.value })}
-                        className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
-                        required
-                      >
-                        <option value="">-- Pilih Guru --</option>
-                        {gurus.map((g) => (
-                          <option key={g.id} value={g.id}>{g.nama_guru}</option>
-                        ))}
-                      </select>
+                    <div className="flex-1 min-w-[200px] flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-slate-400">Guru (Team Teaching / Multi-Guru)</label>
+                      <div className="bg-slate-900 border border-slate-800 rounded-lg p-2.5 max-h-[125px] overflow-y-auto flex flex-col gap-2 custom-scrollbar">
+                        {gurus.map((g) => {
+                          const isChecked = (plotForm.guru_ids || []).includes(String(g.id));
+                          return (
+                            <label key={g.id} className="flex items-center gap-2 text-xs text-slate-200 cursor-pointer hover:bg-slate-800/40 p-1 rounded transition-colors duration-150">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  const currentIds = plotForm.guru_ids || [];
+                                  const nextIds = e.target.checked
+                                    ? [...currentIds, String(g.id)]
+                                    : currentIds.filter(id => id !== String(g.id));
+                                  setPlotForm({ ...plotForm, guru_ids: nextIds });
+                                }}
+                                className="rounded border-slate-800 bg-slate-900 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-slate-900 h-3.5 w-3.5 cursor-pointer"
+                              />
+                              <span>{g.nama_guru}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                      {(plotForm.guru_ids || []).length === 0 && (
+                        <span className="text-[10px] text-rose-400 font-medium">Pilih minimal 1 guru.</span>
+                      )}
                     </div>
 
                     <div className="flex-1 min-w-[150px] flex flex-col gap-1.5">
@@ -2020,7 +2089,7 @@ function App() {
                       {plotForm.id && (
                         <button
                           type="button"
-                          onClick={() => setPlotForm({ id: null, guru_id: '', mapel_id: '', kelas_id: '', beban_jam: '' })}
+                          onClick={() => setPlotForm({ id: null, guru_ids: [], mapel_id: '', kelas_id: '', beban_jam: '' })}
                           className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold px-4 py-2.5 rounded-lg cursor-pointer transition-colors"
                         >
                           Batal
@@ -2062,7 +2131,7 @@ function App() {
                                 }`}
                               >
                                 <td className="py-3 px-4 font-semibold text-slate-200">
-                                  {p.guru?.nama_guru || '(Terhapus)'}
+                                  {p.gurus && p.gurus.length > 0 ? p.gurus.map(g => g.nama_guru).join(', ') : (p.guru?.nama_guru || '(Terhapus)')}
                                 </td>
                                 <td className="py-3 px-4 text-slate-350">
                                   {p.mapel?.nama_mapel || '(Terhapus)'}
@@ -2076,7 +2145,7 @@ function App() {
                                     onClick={() =>
                                       setPlotForm({
                                         id: p.id,
-                                        guru_id: p.guru_id,
+                                        guru_ids: p.gurus ? p.gurus.map(g => String(g.id)) : (p.guru_id ? [String(p.guru_id)] : []),
                                         mapel_id: p.mapel_id,
                                         kelas_id: p.kelas_id,
                                         beban_jam: p.beban_jam,
@@ -2255,6 +2324,10 @@ function App() {
                                 (j) => j.slot_id === slot.id && j.plot.kelas_id === Number(selectedRekapKelasId)
                               );
 
+                              const blocked = blockedSlots.find(
+                                (bs) => bs.slot_id === slot.id && bs.kelas_id === Number(selectedRekapKelasId)
+                              );
+
                               return (
                                 <td key={day} className="py-3 px-2 border border-slate-400 text-center align-middle">
                                   {scheduled ? (
@@ -2263,8 +2336,12 @@ function App() {
                                         {scheduled.plot.mapel.nama_mapel}
                                       </div>
                                       <div className="text-[9px] text-slate-600 font-semibold mt-1">
-                                        {scheduled.plot.guru.nama_guru}
+                                        {scheduled.plot.gurus && scheduled.plot.gurus.length > 0 ? scheduled.plot.gurus.map(g => g.nama_guru).join(', ') : (scheduled.plot.guru?.nama_guru || '')}
                                       </div>
+                                    </div>
+                                  ) : blocked ? (
+                                    <div className="font-bold text-[10px] text-slate-700 uppercase italic">
+                                      🚫 {blocked.label}
                                     </div>
                                   ) : (
                                     <span className="text-slate-350 font-normal italic">-</span>
@@ -2360,7 +2437,7 @@ function App() {
                   {/* Summary of Teaching Hours per Class */}
                   {(() => {
                     const teacherJadwals = jadwals.filter(
-                      (j) => j.plot.guru_id === Number(selectedRekapGuruId) &&
+                      (j) => (j.plot.gurus ? j.plot.gurus.some(g => g.id === Number(selectedRekapGuruId)) : j.plot.guru_id === Number(selectedRekapGuruId)) &&
                              j.plot.kelas.nama_kelas?.toUpperCase() !== "OFFLINE" &&
                              j.plot.kelas.nama_kelas?.toUpperCase() !== "SIBUK" &&
                              j.plot.kelas.nama_kelas?.toUpperCase() !== "KELAS SIBUK"
@@ -2455,7 +2532,7 @@ function App() {
                               if (!slot) return <td key={day} className="border border-slate-400"></td>;
 
                               const scheduled = jadwals.find(
-                                (j) => j.slot_id === slot.id && j.plot.guru_id === Number(selectedRekapGuruId)
+                                (j) => j.slot_id === slot.id && (j.plot.gurus ? j.plot.gurus.some(g => g.id === Number(selectedRekapGuruId)) : j.plot.guru_id === Number(selectedRekapGuruId))
                               );
 
                               const isOfflineSlot = scheduled && (
@@ -2492,7 +2569,7 @@ function App() {
                   {/* Daftar Mata Pelajaran dan Kelas yang Diampu */}
                   {(() => {
                     const teacherPlots = plots.filter(
-                      (p) => p.guru_id === Number(selectedRekapGuruId) &&
+                      (p) => (p.gurus ? p.gurus.some(g => g.id === Number(selectedRekapGuruId)) : p.guru_id === Number(selectedRekapGuruId)) &&
                              p.kelas?.nama_kelas?.toUpperCase() !== "OFFLINE" &&
                              p.kelas?.nama_kelas?.toUpperCase() !== "SIBUK" &&
                              p.kelas?.nama_kelas?.toUpperCase() !== "KELAS SIBUK"

@@ -80,11 +80,10 @@ model Slot {
 
 model Plot {
   id        Int      @id @default(autoincrement())
-  guru_id   Int
   mapel_id  Int
   kelas_id  Int
   beban_jam Int
-  guru      Guru     @relation("GuruPlots", fields: [guru_id], references: [id], onDelete: Cascade)
+  gurus     Guru[]   @relation("GuruPlots")
   mapel     Mapel    @relation("MapelPlots", fields: [mapel_id], references: [id], onDelete: Cascade)
   kelas     Kelas    @relation("KelasPlots", fields: [kelas_id], references: [id], onDelete: Cascade)
   jadwals   Jadwal[] @relation("PlotJadwals")

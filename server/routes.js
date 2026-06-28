@@ -137,6 +137,7 @@ router.get('/gurus', asyncHandler(async (req, res) => {
     where: { user_id: req.user.id },
     orderBy: { nama_guru: 'asc' }
   });
+  res.set('Cache-Control', 'private, max-age=30, stale-while-revalidate=15');
   res.json(gurus);
 }));
 
@@ -226,6 +227,7 @@ router.get('/kelas', asyncHandler(async (req, res) => {
     where: { user_id: req.user.id },
     orderBy: { nama_kelas: 'asc' }
   });
+  res.set('Cache-Control', 'private, max-age=30, stale-while-revalidate=15');
   res.json(kelasList);
 }));
 
@@ -317,6 +319,7 @@ router.get('/mapels', asyncHandler(async (req, res) => {
     where: { user_id: req.user.id },
     orderBy: { nama_mapel: 'asc' }
   });
+  res.set('Cache-Control', 'private, max-age=30, stale-while-revalidate=15');
   res.json(mapels);
 }));
 
@@ -497,6 +500,7 @@ router.get('/slots', asyncHandler(async (req, res) => {
     }
   }
 
+  res.set('Cache-Control', 'private, max-age=60, stale-while-revalidate=30');
   res.json(filteredSlots);
 }));
 
@@ -717,10 +721,21 @@ router.delete('/plots/:id', asyncHandler(async (req, res) => {
 
 // Helper validation function scoped to user
 async function validateJadwal(prismaClient, userId, slot_id, plot_id, excludeJadwalId = null) {
-  // Fetch Slot
-  const slot = await prismaClient.slot.findFirst({
-    where: { id: slot_id, user_id: userId }
-  });
+  // Fetch Slot and Plot in parallel (independent queries)
+  const [slot, plot] = await Promise.all([
+    prismaClient.slot.findFirst({
+      where: { id: slot_id, user_id: userId }
+    }),
+    prismaClient.plot.findFirst({
+      where: { id: plot_id, user_id: userId },
+      include: {
+        gurus: true,
+        kelas: true,
+        mapel: true
+      }
+    })
+  ]);
+
   if (!slot) {
     return { valid: false, status: 404, message: 'Slot waktu tidak ditemukan!' };
   }
@@ -730,86 +745,78 @@ async function validateJadwal(prismaClient, userId, slot_id, plot_id, excludeJad
     return { valid: false, status: 422, message: 'Tidak dapat menempatkan pelajaran pada jam istirahat!' };
   }
 
-  // Fetch Plot
-  const plot = await prismaClient.plot.findFirst({
-    where: { id: plot_id, user_id: userId },
-    include: {
-      gurus: true,
-      kelas: true,
-      mapel: true
-    }
-  });
   if (!plot) {
     return { valid: false, status: 404, message: 'Plot tugas mengajar tidak ditemukan!' };
   }
 
-  // 2. Validasi Guru Bentrok (Anti-Double Mengajar)
-  // Check if this teacher is scheduled in another class at the same slot
+  // Run teacher clash, class clash, beban jam count, and blocked slot checks in parallel
   const plotGuruIds = plot.gurus.map(g => g.id);
-  const teacherClash = await prismaClient.jadwal.findFirst({
-    where: {
-      user_id: userId,
-      slot_id: slot_id,
-      plot: {
-        gurus: {
-          some: {
-            id: { in: plotGuruIds }
+  const [teacherClash, classClash, currentCount, blockedSlot] = await Promise.all([
+    // 2. Validasi Guru Bentrok (Anti-Double Mengajar)
+    prismaClient.jadwal.findFirst({
+      where: {
+        user_id: userId,
+        slot_id: slot_id,
+        plot: {
+          gurus: {
+            some: {
+              id: { in: plotGuruIds }
+            }
+          }
+        },
+        NOT: excludeJadwalId ? { id: excludeJadwalId } : undefined
+      },
+      include: {
+        plot: {
+          include: {
+            gurus: true
           }
         }
-      },
-      NOT: excludeJadwalId ? { id: excludeJadwalId } : undefined
-    },
-    include: {
-      plot: {
-        include: {
-          gurus: true
-        }
       }
-    }
-  });
+    }),
+    // 3. Validasi Kelas Bentrok
+    prismaClient.jadwal.findFirst({
+      where: {
+        user_id: userId,
+        slot_id: slot_id,
+        plot: {
+          kelas_id: plot.kelas_id
+        },
+        NOT: excludeJadwalId ? { id: excludeJadwalId } : undefined
+      }
+    }),
+    // 4. Validasi Kuota Beban Jam
+    prismaClient.jadwal.count({
+      where: {
+        user_id: userId,
+        plot_id: plot_id,
+        NOT: excludeJadwalId ? { id: excludeJadwalId } : undefined
+      }
+    }),
+    // 5. Validasi Blocked Slot
+    prismaClient.blockedSlot.findFirst({
+      where: {
+        user_id: userId,
+        slot_id: slot_id,
+        kelas_id: plot.kelas_id
+      }
+    })
+  ]);
+
   if (teacherClash) {
     const clashingTeacher = teacherClash.plot.gurus.find(g => plotGuruIds.includes(g.id));
     const clashingTeacherName = clashingTeacher ? clashingTeacher.nama_guru : 'Guru';
     return { valid: false, status: 422, message: `Guru ${clashingTeacherName} sudah mengajar di kelas lain pada jam ini!` };
   }
 
-  // 3. Validasi Kelas Bentrok
-  // Check if this class is already occupied at the same slot
-  const classClash = await prismaClient.jadwal.findFirst({
-    where: {
-      user_id: userId,
-      slot_id: slot_id,
-      plot: {
-        kelas_id: plot.kelas_id
-      },
-      NOT: excludeJadwalId ? { id: excludeJadwalId } : undefined
-    }
-  });
   if (classClash) {
     return { valid: false, status: 422, message: 'Kelas ini sudah memiliki jadwal pelajaran lain pada jam ini!' };
   }
 
-  // 4. Validasi Kuota Beban Jam
-  // Check if count of schedules for this plot exceeds beban_jam
-  const currentCount = await prismaClient.jadwal.count({
-    where: {
-      user_id: userId,
-      plot_id: plot_id,
-      NOT: excludeJadwalId ? { id: excludeJadwalId } : undefined
-    }
-  });
   if (currentCount >= plot.beban_jam) {
     return { valid: false, status: 422, message: 'Jatah jam mengajar untuk mata pelajaran ini sudah habis!' };
   }
 
-  // 5. Validasi Blocked Slot (Slot Terkunci/Kustom)
-  const blockedSlot = await prismaClient.blockedSlot.findFirst({
-    where: {
-      user_id: userId,
-      slot_id: slot_id,
-      kelas_id: plot.kelas_id
-    }
-  });
   if (blockedSlot) {
     return { valid: false, status: 422, message: `Slot waktu ini sedang diblokir untuk kelas ini (${blockedSlot.label})!` };
   }
@@ -822,12 +829,12 @@ router.get('/jadwals', asyncHandler(async (req, res) => {
   const jadwals = await prisma.jadwal.findMany({
     where: { user_id: req.user.id },
     include: {
-      slot: true,
+      slot: { select: { id: true, hari: true, jam_ke: true, jam_mulai: true, jam_selesai: true, is_istirahat: true, keterangan: true } },
       plot: {
         include: {
-          gurus: true,
-          mapel: true,
-          kelas: true
+          gurus: { select: { id: true, nama_guru: true } },
+          mapel: { select: { id: true, nama_mapel: true, kode_mapel: true } },
+          kelas: { select: { id: true, nama_kelas: true } }
         }
       }
     },
@@ -859,12 +866,12 @@ router.post('/jadwals', asyncHandler(async (req, res) => {
       user_id: req.user.id
     },
     include: {
-      slot: true,
+      slot: { select: { id: true, hari: true, jam_ke: true, jam_mulai: true, jam_selesai: true, is_istirahat: true, keterangan: true } },
       plot: {
         include: {
-          gurus: true,
-          mapel: true,
-          kelas: true
+          gurus: { select: { id: true, nama_guru: true } },
+          mapel: { select: { id: true, nama_mapel: true, kode_mapel: true } },
+          kelas: { select: { id: true, nama_kelas: true } }
         }
       }
     }
@@ -906,12 +913,12 @@ router.put('/jadwals/:id', asyncHandler(async (req, res) => {
       plot_id: numericPlotId
     },
     include: {
-      slot: true,
+      slot: { select: { id: true, hari: true, jam_ke: true, jam_mulai: true, jam_selesai: true, is_istirahat: true, keterangan: true } },
       plot: {
         include: {
-          gurus: true,
-          mapel: true,
-          kelas: true
+          gurus: { select: { id: true, nama_guru: true } },
+          mapel: { select: { id: true, nama_mapel: true, kode_mapel: true } },
+          kelas: { select: { id: true, nama_kelas: true } }
         }
       }
     }
@@ -960,6 +967,7 @@ router.get('/school-profile', asyncHandler(async (req, res) => {
       }
     });
   }
+  res.set('Cache-Control', 'private, max-age=300');
   res.json(profile);
 }));
 
@@ -1293,6 +1301,7 @@ router.get('/time-settings', asyncHandler(async (req, res) => {
       breaks: []
     });
   }
+  res.set('Cache-Control', 'private, max-age=300');
   res.json(setting);
 }));
 

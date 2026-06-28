@@ -93,6 +93,7 @@ model Slot {
   blockedSlots BlockedSlot[]
 
   @@index([user_id])
+  @@index([user_id, hari])
   @@map("slots")
 }
 
@@ -109,6 +110,7 @@ model Plot {
   user      User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([user_id])
+  @@index([kelas_id, mapel_id])
   @@map("plots")
 }
 
@@ -124,6 +126,7 @@ model Jadwal {
   @@index([user_id])
   @@index([slot_id])
   @@index([plot_id])
+  @@index([user_id, slot_id])
   @@map("jadwals")
 }
 
@@ -159,6 +162,7 @@ model BlockedSlot {
 
   @@unique([kelas_id, slot_id])
   @@index([user_id])
+  @@index([user_id, slot_id, kelas_id])
   @@map("blocked_slots")
 }
 

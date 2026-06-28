@@ -3210,72 +3210,78 @@ function App() {
                     <li className="flex gap-2">
                       <span className="text-indigo-400 font-bold">Langkah 3:</span>
                       <div>
-                        <strong className="text-slate-200">Penyusunan:</strong> Masuk ke tab "Jadwal Interaktif", pilih kelas, lalu geser (drag & drop) kartu mengajar dari sidebar kiri ke dalam kotak matrix waktu. UI akan merespon secara instan (0ms) dengan background sync yang aman.
+                        <strong className="text-slate-200">Penyusunan:</strong> Masuk ke tab "Jadwal Interaktif", pilih kelas, lalu geser (drag & drop) kartu mengajar dari sidebar kiri ke dalam kotak matrix waktu. UI akan merespon secara instan dengan background sync yang aman.
                       </div>
                     </li>
                   </ul>
                 </div>
               </div>
 
-              {/* Card 2: Fitur Gembok */}
+              {/* Card 2: Manajemen Slot Waktu & Istirahat Sisipan (Baru) */}
               <div className="bg-slate-950 border border-slate-800 p-5 rounded-xl flex flex-col justify-between hover:border-slate-700 transition-colors">
                 <div>
                   <div className="flex justify-between items-start gap-2 mb-3">
                     <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-                      <span>🔒</span> 2. Fitur Gembok Kustom (Custom Blocked Slots)
+                      <span>⚙️</span> 2. Manajemen Slot Waktu & Istirahat Sisipan (Baru)
                     </h3>
-                    <span className="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-900/50 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
-                      Fitur
+                    <span className="text-[10px] bg-indigo-950 text-indigo-400 border border-indigo-900/50 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
+                      Waktu
                     </span>
                   </div>
                   <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                    Digunakan untuk mengunci jam-jam tertentu yang tidak melibatkan guru mata pelajaran, seperti <strong>Upacara Bendera</strong> atau <strong>Shalat Dhuha</strong>.
+                    Cara mengatur jam operasional sekolah dan istirahat global tanpa mengganggu jam pelajaran:
                   </p>
-                  <div className="bg-slate-900 border border-slate-850 p-3 rounded-lg flex flex-col gap-2.5 text-xs text-slate-350">
-                    <div>
-                      <strong className="text-slate-200">Cara Pakai:</strong>
-                      <p className="text-slate-400 mt-1">
-                        Arahkan kursor ke kotak matrix yang kosong di jadwal kelas, klik ikon gembok (🔒) yang muncul, masukkan nama kegiatan, lalu simpan.
-                      </p>
-                    </div>
-                    <div className="border-t border-slate-800 pt-2">
-                      <strong className="text-slate-200">Hasil:</strong>
-                      <p className="text-slate-400 mt-1">
-                        Kotak akan otomatis tersegel dengan ikon yang sesuai (misal: 🚩 Upacara, 🕌 Shalat Dhuha, atau 🔒 Kunci Umum) untuk mencegah pengisian jadwal secara tidak sengaja di kelas tersebut. Klik ikon gembok lagi (🔓) untuk membukanya kembali.
-                      </p>
-                    </div>
-                  </div>
+                  <ul className="flex flex-col gap-3 text-xs text-slate-350">
+                    <li className="flex gap-2">
+                      <span className="text-indigo-400 font-bold">•</span>
+                      <div>
+                        <strong className="text-slate-200">Atur Waktu Global:</strong> Melalui menu "Master Data" -&gt; "Pengaturan Waktu", Anda dapat menentukan Hari Sekolah Aktif (misal 5 atau 6 hari) serta jumlah total Jam Pelajaran (JP) efektif per hari. Grid jadwal akan otomatis menciut atau melebar secara instan.
+                      </div>
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="text-indigo-400 font-bold">•</span>
+                      <div>
+                        <strong className="text-slate-200">Istirahat Otomatis (Tidak Memotong JP):</strong> Tersedia 3 slot khusus (Istirahat Pagi, Siang, Sore) yang bisa Anda pilih untuk disisipkan "Setelah Jam Ke-X". Sistem akan otomatis menyisipkan baris abu-abu bertuliskan <code className="bg-slate-900 px-1 py-0.5 rounded text-indigo-400 font-mono text-[10px]">--- ISTIRAHAT ---</code> di semua kelas secara serentak.
+                      </div>
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="text-indigo-400 font-bold">•</span>
+                      <div>
+                        <strong className="text-slate-200">Keunggulan:</strong> Istirahat ini bersifat sisipan di luar jam belajar, sehingga total JP efektif Anda tetap utuh (tidak terpotong oleh waktu istirahat) dan seluruh baris istirahat otomatis terkunci (🚫) dari aktivitas drag & drop.
+                      </div>
+                    </li>
+                  </ul>
                 </div>
               </div>
 
-              {/* Card 3: Multi-Guru / Team Teaching */}
+              {/* Card 3: Fitur Gembok Kustom (Custom Blocked Slots) */}
               <div className="bg-slate-950 border border-slate-800 p-5 rounded-xl flex flex-col justify-between hover:border-slate-700 transition-colors">
                 <div>
                   <div className="flex justify-between items-start gap-2 mb-3">
                     <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-                      <span>👥</span> 3. Mengatur Tahfizh / Team Teaching (Multi-Guru)
+                      <span>🔒</span> 3. Fitur Gembok Kustom (Custom Blocked Slots)
                     </h3>
-                    <span className="text-[10px] bg-purple-950 text-purple-400 border border-purple-900/50 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
-                      Kolaborasi
+                    <span className="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-900/50 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
+                      Segel
                     </span>
                   </div>
                   <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                    Digunakan jika ada satu mata pelajaran yang dipandu oleh beberapa guru sekaligus dalam satu kelas dan jam yang sama.
+                    Mengunci slot tertentu untuk kelas spesifik di luar istirahat massal global:
                   </p>
-                  <div className="flex flex-col gap-3 text-xs text-slate-350">
-                    <div>
-                      <strong className="text-slate-200">Cara Pakai:</strong>
-                      <p className="text-slate-400 mt-1">
-                        Saat membuat "Plot Data", pada pilihan Guru, Anda dapat mencentang lebih dari satu nama guru sekaligus (misal: Pak Budi & Bu Siti).
-                      </p>
-                    </div>
-                    <div className="bg-slate-900 border border-slate-850 p-3 rounded-lg">
-                      <strong className="text-emerald-400">Keunggulan:</strong>
-                      <p className="text-slate-400 mt-1">
-                        Sistem otomatis menghitung jam mengajar penuh untuk masing-masing guru di tabel Rekapitulasi secara adil, serta mencegah bentrok jika salah satu guru dari tim sudah mengajar di kelas lain pada jam yang sama.
-                      </p>
-                    </div>
-                  </div>
+                  <ul className="flex flex-col gap-3 text-xs text-slate-350">
+                    <li className="flex gap-2">
+                      <span className="text-emerald-400 font-bold">•</span>
+                      <div>
+                        <strong className="text-slate-200">Fungsi:</strong> Digunakan secara khusus untuk mengunci slot-slot tertentu di luar jam istirahat massal yang hanya berlaku untuk kelas atau hari tertentu saja (misal: Upacara Bendera di hari Senin jam ke-1, atau Shalat Dhuha berjamaah).
+                      </div>
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="text-emerald-400 font-bold">•</span>
+                      <div>
+                        <strong className="text-slate-200">Cara Pakai:</strong> Cukup arahkan kursor ke kotak matrix kosong pada jadwal kelas tertentu, klik ikon gembok (🔒), masukkan nama kegiatannya, lalu simpan. Kotak tersebut akan tersegel secara mandiri.
+                      </div>
+                    </li>
+                  </ul>
                 </div>
               </div>
 
@@ -3342,13 +3348,13 @@ function App() {
               </div>
 
               {/* Card 6: Kelas Sibuk & Jadwal Offline */}
-              <div className="bg-slate-950 border border-slate-800 p-5 rounded-xl flex flex-col justify-between hover:border-slate-700 transition-colors">
+              <div className="bg-slate-950 border border-slate-800 p-5 rounded-xl flex flex-col justify-between hover:border-slate-700 transition-colors md:col-span-2">
                 <div>
                   <div className="flex justify-between items-start gap-2 mb-3">
                     <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
                       <span>⚠️</span> 6. Manajemen Kelas Sibuk & Jadwal Offline (Teacher Availability)
                     </h3>
-                    <span className="text-[10px] bg-rose-950 text-rose-400 border border-rose-900/50 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
+                    <span className="text-[10px] bg-rose-950 text-rose-455 border border-rose-900/50 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
                       Availability
                     </span>
                   </div>
@@ -3362,42 +3368,11 @@ function App() {
                     <div>
                       <strong className="text-slate-200">Visualisasi Indikator Grid:</strong>
                       <p className="text-slate-400 mt-1">
-                        Saat menyusun jadwal, jika guru yang Anda filter sedang mengajar di kelas reguler lain, slot grid akan berkedip merah dengan label <span className="text-rose-455 font-bold">⚠️ SIBUK</span>. Jika bentrok dengan jadwal luar sekolah, slot akan ditandai dengan pola garis abu-abu <span className="text-slate-300 font-bold">❌ GURU BLOCKOUT</span>.
+                        Saat menyusun jadwal, jika guru yang Anda filter sedang mengajar di kelas reguler lain, slot grid akan berkedip merah dengan label <span className="text-rose-450 font-bold">⚠️ SIBUK</span>. Jika bentrok dengan jadwal luar sekolah, slot akan ditandai dengan pola garis abu-abu <span className="text-slate-300 font-bold">❌ GURU BLOCKOUT</span>.
                       </p>
                     </div>
                     <div className="bg-indigo-950/30 border border-indigo-900/50 p-2.5 rounded-lg text-indigo-300">
                       <strong>Proteksi Bentrok Otomatis:</strong> Sistem secara real-time memblokir aksi drag & drop ke slot sibuk tersebut dan mencegah penumpukan jadwal guru demi menghindari bentrok mengajar.
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Card 7: Konfigurasi Waktu & Slot Istirahat (Tambahan) */}
-              <div className="bg-slate-950 border border-slate-800 p-5 rounded-xl flex flex-col justify-between hover:border-slate-700 transition-colors md:col-span-2">
-                <div>
-                  <div className="flex justify-between items-start gap-2 mb-3">
-                    <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-                      <span>⏰</span> 7. Konfigurasi Jam Operasional & Slot Istirahat
-                    </h3>
-                    <span className="text-[10px] bg-slate-900 text-slate-400 border border-slate-850 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
-                      Konfigurasi
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                    Anda dapat memodifikasi struktur jam KBM di sekolah agar selaras dengan jadwal harian:
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-350">
-                    <div className="bg-slate-900 border border-slate-850 p-3 rounded-lg">
-                      <strong className="text-slate-200">Edit Jam Kustom:</strong>
-                      <p className="text-slate-400 mt-1">
-                        Di bawah menu <strong>Data Master &rarr; Waktu & Slot</strong>, ubah rentang waktu jam mulai dan jam selesai. Perubahan ini akan segera memperbarui tampilan grid interaktif tanpa merusak relasi jadwal yang ada.
-                      </p>
-                    </div>
-                    <div className="bg-slate-900 border border-slate-850 p-3 rounded-lg">
-                      <strong className="text-slate-200">Kunci Jam Istirahat otomatis:</strong>
-                      <p className="text-slate-400 mt-1">
-                        Setiap baris waktu yang bertanda "Istirahat" (seperti istirahat KBM) akan terkunci secara visual dengan label Istirahat. Tidak ada pelajaran reguler yang dapat dimasukkan secara tidak sengaja di slot tersebut.
-                      </p>
                     </div>
                   </div>
                 </div>

@@ -62,7 +62,7 @@ function App() {
   const [authLoading, setAuthLoading] = useState(false);
 
   // Navigation
-  const [activeTab, setActiveTab] = useState('jadwal'); // 'jadwal' | 'master' | 'rekap' | 'profil' | 'panduan'
+  const [activeTab, setActiveTab] = useState('profil'); // 'profil' | 'master' | 'jadwal' | 'rekap' | 'panduan'
 
   // Master Data State
   const [gurus, setGurus] = useState([]);
@@ -198,6 +198,7 @@ function App() {
         localStorage.setItem('user', JSON.stringify(data.user));
         setToken(data.token);
         setUser(data.user);
+        setActiveTab('profil');
         showToast(authMode === 'login' ? 'Login berhasil!' : 'Pendaftaran sekolah berhasil!');
       } else {
         setAuthError(data.error || 'Terjadi kesalahan saat otentikasi.');
@@ -1229,14 +1230,14 @@ function App() {
           <div className="flex items-center gap-4">
             <nav className="flex bg-slate-950 border border-slate-800 p-1 rounded-lg">
             <button
-              onClick={() => setActiveTab('jadwal')}
+              onClick={() => setActiveTab('profil')}
               className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${
-                activeTab === 'jadwal'
+                activeTab === 'profil'
                   ? 'bg-indigo-600 text-white shadow-md'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Penyusunan Jadwal
+              Profil Sekolah
             </button>
             <button
               onClick={() => setActiveTab('master')}
@@ -1249,6 +1250,16 @@ function App() {
               Data Master
             </button>
             <button
+              onClick={() => setActiveTab('jadwal')}
+              className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${
+                activeTab === 'jadwal'
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Penyusunan Jadwal
+            </button>
+            <button
               onClick={() => setActiveTab('rekap')}
               className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${
                 activeTab === 'rekap'
@@ -1257,16 +1268,6 @@ function App() {
               }`}
             >
               Cetak / Rekap
-            </button>
-            <button
-              onClick={() => setActiveTab('profil')}
-              className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${
-                activeTab === 'profil'
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              Profil Sekolah
             </button>
             <button
               onClick={() => setActiveTab('panduan')}

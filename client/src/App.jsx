@@ -878,8 +878,10 @@ function App() {
         }),
       });
       if (res.ok) {
-        const data = await res.json();
-        setSlots(prev => prev.map(s => s.id === data.id ? data : s));
+        const slotsRes = await apiFetch(`${API_BASE}/slots`);
+        if (slotsRes.ok) {
+          setSlots(await slotsRes.json());
+        }
         showToast('Waktu slot berhasil diperbarui!');
         setEditingSlotId(null);
       } else {

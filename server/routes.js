@@ -137,7 +137,7 @@ router.get('/gurus', asyncHandler(async (req, res) => {
     where: { user_id: req.user.id },
     orderBy: { nama_guru: 'asc' }
   });
-  res.set('Cache-Control', 'private, max-age=30, stale-while-revalidate=15');
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.json(gurus);
 }));
 
@@ -227,7 +227,7 @@ router.get('/kelas', asyncHandler(async (req, res) => {
     where: { user_id: req.user.id },
     orderBy: { nama_kelas: 'asc' }
   });
-  res.set('Cache-Control', 'private, max-age=30, stale-while-revalidate=15');
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.json(kelasList);
 }));
 
@@ -319,7 +319,7 @@ router.get('/mapels', asyncHandler(async (req, res) => {
     where: { user_id: req.user.id },
     orderBy: { nama_mapel: 'asc' }
   });
-  res.set('Cache-Control', 'private, max-age=30, stale-while-revalidate=15');
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.json(mapels);
 }));
 
@@ -503,7 +503,7 @@ router.get('/slots', asyncHandler(async (req, res) => {
     }
   }
 
-  res.set('Cache-Control', 'private, max-age=60, stale-while-revalidate=30');
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.json(filteredSlots);
 }));
 
@@ -970,7 +970,7 @@ router.get('/school-profile', asyncHandler(async (req, res) => {
       }
     });
   }
-  res.set('Cache-Control', 'private, max-age=300');
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.json(profile);
 }));
 
@@ -1304,7 +1304,7 @@ router.get('/time-settings', asyncHandler(async (req, res) => {
       breaks: []
     });
   }
-  res.set('Cache-Control', 'private, max-age=300');
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.json(setting);
 }));
 

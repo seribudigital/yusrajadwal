@@ -78,7 +78,9 @@ router.post('/register', asyncHandler(async (req, res) => {
     user: {
       id: newUser.id,
       email: newUser.email,
-      nama_sekolah: newUser.nama_sekolah
+      nama_sekolah: newUser.nama_sekolah,
+      role: newUser.role,
+      status: newUser.status
     }
   });
 }));
@@ -115,7 +117,9 @@ router.post('/login', asyncHandler(async (req, res) => {
     user: {
       id: user.id,
       email: user.email,
-      nama_sekolah: user.nama_sekolah
+      nama_sekolah: user.nama_sekolah,
+      role: user.role,
+      status: user.status
     }
   });
 }));

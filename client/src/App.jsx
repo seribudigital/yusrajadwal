@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ProktorDashboard from './components/ProktorDashboard';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
@@ -234,11 +235,31 @@ function App() {
     }
   };
 
+  // Announcement banner state
+  const [announcement, setAnnouncement] = useState('');
+
+  // Fetch global announcement for all logged-in users
+  const fetchAnnouncement = async () => {
+    if (!token) return;
+    try {
+      const res = await apiFetch(`${API_BASE}/proktor/announcement`);
+      if (res.ok) {
+        const data = await res.json();
+        setAnnouncement(data.text || '');
+      }
+    } catch (err) {
+      console.error('Gagal memuat pengumuman:', err);
+    }
+  };
+
   useEffect(() => {
     if (token) {
-      fetchData();
+      fetchAnnouncement();
+      if (user?.role !== 'SUPER_ADMIN') {
+        fetchData();
+      }
     }
-  }, [token]);
+  }, [token, user?.role]);
 
   // Helper to show toasts
   const showToast = (message, type = 'success') => {
@@ -1129,9 +1150,76 @@ function App() {
     );
   }
 
+  // 1. Account Suspended Check
+  if (user?.status === 'SUSPENDED') {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4 relative overflow-hidden font-sans">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-rose-600/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-red-955/20 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div className="max-w-md w-full bg-slate-900/60 backdrop-blur-xl border border-rose-900/40 rounded-2xl shadow-2xl p-8 z-10 text-center space-y-6">
+          <div className="h-16 w-16 bg-rose-950/60 border border-rose-500/40 rounded-full flex items-center justify-center text-3xl mx-auto animate-pulse">
+            🚫
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold text-white">Akun Ditangguhkan</h2>
+            <p className="text-sm text-slate-400">
+              Akses sekolah <strong className="text-rose-300">{user?.nama_sekolah}</strong> sementara dinonaktifkan oleh administrator sistem.
+            </p>
+          </div>
+          <div className="bg-rose-950/20 border border-rose-900/30 rounded-xl p-4 text-xs text-rose-200">
+            Hal ini terjadi karena batas paket lisensi telah terlampaui, tagihan jatuh tempo, atau pemeliharaan akun. Silakan hubungi Proktor Central untuk mengaktifkan kembali akun Anda.
+          </div>
+          <div className="pt-2 flex flex-col gap-3">
+            <a
+              href="mailto:proktor@yusrajadwal.com?subject=Reaktivasi%20Akun%20Sekolah"
+              className="w-full bg-rose-900 hover:bg-rose-800 text-white font-bold py-2.5 px-4 rounded-lg text-sm transition-colors shadow-md block text-center"
+            >
+              Hubungi Proktor Central ✉️
+            </a>
+            <button
+              onClick={() => {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                setToken(null);
+                setUser(null);
+                showToast('Anda telah keluar.');
+              }}
+              className="text-xs text-slate-500 hover:text-slate-350 underline cursor-pointer"
+            >
+              Keluar dari Akun 🚪
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Proktor Central Check
+  if (user?.role === 'SUPER_ADMIN') {
+    return (
+      <ProktorDashboard
+        token={token}
+        user={user}
+        setUser={setUser}
+        setToken={setToken}
+        showToast={showToast}
+        API_BASE={API_BASE}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
       
+      {/* Global Announcement Banner */}
+      {announcement && (
+        <div className="bg-gradient-to-r from-indigo-900 via-purple-900 to-cyan-900 text-white py-2 px-4 text-center text-xs font-semibold flex items-center justify-center gap-2 relative z-40 animate-fade-in border-b border-indigo-500/20 shrink-0">
+          <span>📢</span>
+          <span>{announcement}</span>
+        </div>
+      )}
+
       {/* Toast Notification Container */}
       <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none">
         {toasts.map((t) => (

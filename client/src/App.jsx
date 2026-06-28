@@ -15,6 +15,35 @@ const getBlockedIcon = (label) => {
   return '🔒';
 };
 
+const normalizeBreaks = (breaks) => {
+  if (!Array.isArray(breaks)) return [];
+  if (breaks.length > 0 && typeof breaks[0] === 'number') {
+    return breaks.map((b, idx) => ({
+      id: idx + 1,
+      after_jp: b,
+      label: idx === 0 ? "ISTIRAHAT PAGI" : (idx === 1 ? "ISTIRAHAT SIANG" : "ISTIRAHAT SORE")
+    }));
+  }
+  return breaks;
+};
+
+const getInitialBreaks = (breaks) => {
+  const normalized = normalizeBreaks(breaks);
+  const result = [
+    { id: 1, after_jp: 0, label: "ISTIRAHAT PAGI" },
+    { id: 2, after_jp: 0, label: "ISTIRAHAT SIANG" },
+    { id: 3, after_jp: 0, label: "ISTIRAHAT SORE" }
+  ];
+  normalized.forEach(b => {
+    const idx = result.findIndex(r => r.id === b.id);
+    if (idx !== -1) {
+      result[idx].after_jp = b.after_jp || 0;
+      if (b.label) result[idx].label = b.label;
+    }
+  });
+  return result;
+};
+
 function App() {
   // Authentication States
   const [token, setToken] = useState(localStorage.getItem('token') || null);
@@ -209,11 +238,12 @@ function App() {
       setSchoolProfile(sp);
       setBlockedSlots(bs);
       if (ts) {
-        setTimeSettings(ts);
+        const initialBreaks = getInitialBreaks(ts.breaks);
+        setTimeSettings({ ...ts, breaks: initialBreaks });
         setTimeForm({
           active_days: ts.active_days || [],
           total_jp: ts.total_jp || 10,
-          breaks: ts.breaks || []
+          breaks: initialBreaks
         });
       }
 
@@ -994,13 +1024,19 @@ function App() {
         body: JSON.stringify({
           active_days: timeForm.active_days,
           total_jp: totalJpVal,
-          breaks: timeForm.breaks.map(Number)
+          breaks: timeForm.breaks
         })
       });
 
       const data = await res.json();
       if (res.ok) {
-        setTimeSettings(data);
+        const initialBreaks = getInitialBreaks(data.breaks);
+        setTimeSettings({ ...data, breaks: initialBreaks });
+        setTimeForm({
+          active_days: data.active_days || [],
+          total_jp: data.total_jp || 10,
+          breaks: initialBreaks
+        });
         showToast('Pengaturan waktu berhasil disimpan!', 'success');
         
         const slotsRes = await apiFetch(`${API_BASE}/slots`);
@@ -1477,12 +1513,10 @@ function App() {
                       const referenceSlot = slotsByDay[firstActiveDay] ? slotsByDay[firstActiveDay][rowIndex] : null;
                       if (!referenceSlot) return null;
 
-                      const isBreakRow = referenceSlot.is_istirahat || (timeSettings?.breaks && timeSettings.breaks.includes(referenceSlot.jam_ke));
+                      const isBreakRow = referenceSlot.is_istirahat;
 
                       if (isBreakRow) {
-                        const breakLabel = (timeSettings?.breaks && timeSettings.breaks.includes(referenceSlot.jam_ke)) 
-                          ? "--- ISTIRAHAT ---" 
-                          : (referenceSlot.keterangan || "ISTIRAHAT");
+                        const breakLabel = referenceSlot.keterangan || "ISTIRAHAT";
                         return (
                           <tr key={rowIndex} className="border-b border-slate-800/50">
                             <td className="py-2.5 px-3 bg-slate-950/80 border-r border-slate-800 text-center text-xs font-semibold text-slate-400">
@@ -2405,43 +2439,58 @@ function App() {
                         </span>
                       </div>
 
-                      {/* Break Slots Checkboxes */}
-                      <div className="flex flex-col gap-2">
+                      {/* Break Slots Configuration */}
+                      <div className="flex flex-col gap-4">
                         <label className="text-sm font-semibold text-slate-350">
-                          3. Tentukan Jam Ke- Berapa yang merupakan Istirahat
+                          3. Atur Posisi Istirahat (Maksimal 3 Istirahat)
                         </label>
-                        <span className="text-[11px] text-slate-500 -mt-1">
-                          Jam ke yang dipilih akan secara otomatis dikunci sebagai waktu istirahat secara global untuk semua kelas.
+                        <span className="text-[11px] text-slate-500 -mt-3">
+                          Tentukan setelah jam ke berapa istirahat disisipkan. Istirahat disisipkan di antara jam pelajaran tanpa mengurangi jumlah total JP.
                         </span>
                         
-                        {timeForm.total_jp > 0 ? (
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-1">
-                            {Array.from({ length: Number(timeForm.total_jp) }).map((_, idx) => {
-                              const jpNumber = idx + 1;
-                              const isChecked = timeForm.breaks.includes(jpNumber);
-                              return (
-                                <label key={jpNumber} className="flex items-center gap-3 p-3 rounded-lg border border-slate-850 bg-slate-900/60 cursor-pointer hover:border-slate-755 hover:bg-slate-900 transition-all select-none">
-                                  <input
-                                    type="checkbox"
-                                    checked={isChecked}
+                        <div className="flex flex-col gap-4 bg-slate-900/40 border border-slate-850 p-4 rounded-lg">
+                          {[
+                            { id: 1, label: "Istirahat 1 (Pagi)", key: "ISTIRAHAT PAGI" },
+                            { id: 2, label: "Istirahat 2 (Siang)", key: "ISTIRAHAT SIANG" },
+                            { id: 3, label: "Istirahat 3 (Sore)", key: "ISTIRAHAT SORE" }
+                          ].map((bConf) => {
+                            const currentBreak = (timeForm.breaks || []).find(b => b.id === bConf.id) || { id: bConf.id, after_jp: 0, label: bConf.key };
+                            const value = currentBreak.after_jp;
+
+                            return (
+                              <div key={bConf.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-850 last:border-b-0 last:pb-0">
+                                <div className="flex flex-col">
+                                  <span className="text-xs font-semibold text-slate-200">{bConf.label}</span>
+                                  <span className="text-[10px] text-slate-500">Posisi: {value > 0 ? `Setelah Jam Ke-${value}` : 'Tidak Ada (Nonaktif)'}</span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <select
+                                    value={value}
                                     onChange={(e) => {
-                                      const nextBreaks = e.target.checked
-                                        ? [...timeForm.breaks, jpNumber]
-                                        : timeForm.breaks.filter(b => b !== jpNumber);
-                                      setTimeForm({ ...timeForm, breaks: nextBreaks });
+                                      const newVal = parseInt(e.target.value) || 0;
+                                      const updatedBreaks = [1, 2, 3].map(id => {
+                                        const original = (timeForm.breaks || []).find(b => b.id === id) || { id, after_jp: 0, label: id === 1 ? "ISTIRAHAT PAGI" : (id === 2 ? "ISTIRAHAT SIANG" : "ISTIRAHAT SORE") };
+                                        if (id === bConf.id) {
+                                          return { ...original, after_jp: newVal };
+                                        }
+                                        return original;
+                                      });
+                                      setTimeForm({ ...timeForm, breaks: updatedBreaks });
                                     }}
-                                    className="rounded border-slate-800 bg-slate-950 text-rose-600 focus:ring-rose-500 h-4 w-4 cursor-pointer"
-                                  />
-                                  <span className="text-xs font-semibold text-slate-200">Jam Ke-{jpNumber}</span>
-                                </label>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <span className="text-xs italic text-slate-600">
-                            (Masukkan Total JP terlebih dahulu untuk memunculkan slot istirahat)
-                          </span>
-                        )}
+                                    className="bg-slate-950 border border-slate-850 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 w-44 cursor-pointer"
+                                  >
+                                    <option value="0">Tidak Ada (Nonaktif)</option>
+                                    {Array.from({ length: Number(timeForm.total_jp || 0) }).map((_, i) => (
+                                      <option key={i + 1} value={i + 1}>
+                                        Setelah Jam Ke-{i + 1}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
 
                       <div className="mt-2 pt-4 border-t border-slate-800/80 flex justify-end">
@@ -2563,12 +2612,10 @@ function App() {
                         const referenceSlot = slotsByDay[firstActiveDay] ? slotsByDay[firstActiveDay][rowIndex] : null;
                         if (!referenceSlot) return null;
 
-                        const isBreakRow = referenceSlot.is_istirahat || (timeSettings?.breaks && timeSettings.breaks.includes(referenceSlot.jam_ke));
+                        const isBreakRow = referenceSlot.is_istirahat;
 
                         if (isBreakRow) {
-                          const breakLabel = (timeSettings?.breaks && timeSettings.breaks.includes(referenceSlot.jam_ke)) 
-                            ? "--- ISTIRAHAT ---" 
-                            : (referenceSlot.keterangan || "ISTIRAHAT");
+                          const breakLabel = referenceSlot.keterangan || "ISTIRAHAT";
                           return (
                             <tr key={rowIndex} className="border border-slate-400">
                               <td className="py-2 px-2 border border-slate-400 text-center bg-slate-100 font-bold text-[10px] text-slate-700">
@@ -2777,12 +2824,10 @@ function App() {
                         const referenceSlot = slotsByDay[firstActiveDay] ? slotsByDay[firstActiveDay][rowIndex] : null;
                         if (!referenceSlot) return null;
 
-                        const isBreakRow = referenceSlot.is_istirahat || (timeSettings?.breaks && timeSettings.breaks.includes(referenceSlot.jam_ke));
+                        const isBreakRow = referenceSlot.is_istirahat;
 
                         if (isBreakRow) {
-                          const breakLabel = (timeSettings?.breaks && timeSettings.breaks.includes(referenceSlot.jam_ke)) 
-                            ? "--- ISTIRAHAT ---" 
-                            : (referenceSlot.keterangan || "ISTIRAHAT");
+                          const breakLabel = referenceSlot.keterangan || "ISTIRAHAT";
                           return (
                             <tr key={rowIndex} className="border border-slate-400">
                               <td className="py-2 px-2 border border-slate-400 text-center bg-slate-100 font-bold text-[10px] text-slate-700">

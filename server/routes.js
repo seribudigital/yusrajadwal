@@ -418,34 +418,81 @@ router.get('/slots', asyncHandler(async (req, res) => {
 
   const active_days = setting ? setting.active_days : ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
   const total_jp = setting ? setting.total_jp : 10;
-  const breaks = (setting && Array.isArray(setting.breaks)) ? setting.breaks : [];
 
-  // Filter slots to be within active_days and total_jp
+  // Normalize breaks format
+  let rawBreaks = setting ? setting.breaks : [];
+  if (!Array.isArray(rawBreaks)) rawBreaks = [];
+  let configBreaks = rawBreaks;
+  // Backwards compatibility with old number array format [4, 7]
+  if (rawBreaks.length > 0 && typeof rawBreaks[0] === 'number') {
+    configBreaks = rawBreaks.map((b, idx) => ({
+      id: idx + 1,
+      after_jp: b,
+      label: idx === 0 ? "ISTIRAHAT PAGI" : (idx === 1 ? "ISTIRAHAT SIANG" : "ISTIRAHAT SORE")
+    }));
+  }
+
   let filteredSlots = [];
-  const dayCounters = {};
-  for (const slot of slots) {
-    if (!active_days.includes(slot.hari)) {
-      continue;
-    }
-    if (!dayCounters[slot.hari]) {
-      dayCounters[slot.hari] = 0;
-    }
-    if (slot.is_istirahat) {
-      if (dayCounters[slot.hari] >= total_jp) {
-        continue;
-      }
-      filteredSlots.push(slot);
-    } else {
-      if (slot.jam_ke !== null) {
-        if (dayCounters[slot.hari] < total_jp) {
-          dayCounters[slot.hari]++;
-          const isBreak = breaks.includes(slot.jam_ke);
-          filteredSlots.push({
-            ...slot,
-            is_istirahat: isBreak || slot.is_istirahat,
-            keterangan: isBreak ? '--- ISTIRAHAT ---' : slot.keterangan
-          });
+
+  // Process day by day to preserve ordering and correct insertion
+  for (const day of active_days) {
+    const daySlots = slots.filter(s => s.hari === day);
+    
+    const dbLessons = daySlots
+      .filter(s => s.is_istirahat === false && s.jam_ke !== null)
+      .sort((a, b) => a.jam_ke - b.jam_ke);
+      
+    const dbBreaks = daySlots.filter(s => s.is_istirahat === true);
+
+    // Take only the lesson slots up to total_jp
+    const activeLessons = dbLessons.slice(0, total_jp);
+
+    for (let i = 0; i < activeLessons.length; i++) {
+      const lessonSlot = activeLessons[i];
+      filteredSlots.push(lessonSlot);
+
+      const currentJp = lessonSlot.jam_ke;
+      
+      // Find if a break is configured after this JP
+      const matchedBreakConf = configBreaks.find(b => b.after_jp === currentJp);
+      if (matchedBreakConf) {
+        // Find database break slot for this day matching the label prefix (e.g. pagi/siang/sore)
+        const breakLabel = matchedBreakConf.label || 'ISTIRAHAT';
+        const labelKey = breakLabel.toLowerCase();
+        
+        let matchedDbBreak = null;
+        if (labelKey.includes('pagi')) {
+          matchedDbBreak = dbBreaks.find(b => b.keterangan && b.keterangan.toLowerCase().includes('pagi'));
+        } else if (labelKey.includes('siang')) {
+          matchedDbBreak = dbBreaks.find(b => b.keterangan && b.keterangan.toLowerCase().includes('siang'));
+        } else if (labelKey.includes('sore')) {
+          matchedDbBreak = dbBreaks.find(b => b.keterangan && b.keterangan.toLowerCase().includes('sore'));
         }
+        
+        // Fallback if not found by name
+        if (!matchedDbBreak) {
+          const breakIdx = matchedBreakConf.id - 1;
+          matchedDbBreak = dbBreaks[breakIdx] || dbBreaks[0];
+        }
+
+        // Construct the final break slot
+        const finalBreakSlot = matchedDbBreak ? {
+          ...matchedDbBreak,
+          is_istirahat: true,
+          jam_ke: null,
+          keterangan: breakLabel
+        } : {
+          id: 9000 + day.charCodeAt(0) + matchedBreakConf.id, // fake but unique ID
+          hari: day,
+          jam_ke: null,
+          jam_mulai: '12:00',
+          jam_selesai: '12:30',
+          is_istirahat: true,
+          keterangan: breakLabel,
+          user_id: req.user.id
+        };
+
+        filteredSlots.push(finalBreakSlot);
       }
     }
   }

@@ -36,6 +36,16 @@ function App() {
   const [plots, setPlots] = useState([]);
   const [jadwals, setJadwals] = useState([]);
   const [blockedSlots, setBlockedSlots] = useState([]);
+  const [timeSettings, setTimeSettings] = useState({
+    active_days: ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'],
+    total_jp: 10,
+    breaks: []
+  });
+  const [timeForm, setTimeForm] = useState({
+    active_days: ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'],
+    total_jp: 10,
+    breaks: []
+  });
 
   // Active Selections
   const [selectedKelasId, setSelectedKelasId] = useState(null);
@@ -177,6 +187,7 @@ function App() {
         apiFetch(`${API_BASE}/jadwals`),
         apiFetch(`${API_BASE}/school-profile`),
         apiFetch(`${API_BASE}/blocked-slots`),
+        apiFetch(`${API_BASE}/time-settings`),
       ]);
 
       // Verify all responses succeeded
@@ -187,7 +198,7 @@ function App() {
         }
       }
 
-      const [g, k, m, s, p, j, sp, bs] = await Promise.all(responses.map((r) => r.json()));
+      const [g, k, m, s, p, j, sp, bs, ts] = await Promise.all(responses.map((r) => r.json()));
 
       setGurus(g);
       setKelas(k);
@@ -197,6 +208,14 @@ function App() {
       setJadwals(j);
       setSchoolProfile(sp);
       setBlockedSlots(bs);
+      if (ts) {
+        setTimeSettings(ts);
+        setTimeForm({
+          active_days: ts.active_days || [],
+          total_jp: ts.total_jp || 10,
+          breaks: ts.breaks || []
+        });
+      }
 
       // Populate form and signature values
       if (sp) {
@@ -954,10 +973,54 @@ function App() {
     }
   };
 
+  const saveTimeSettings = async (e) => {
+    if (e) e.preventDefault();
+    
+    const totalJpVal = Number(timeForm.total_jp);
+    if (isNaN(totalJpVal) || totalJpVal < 1 || totalJpVal > 15) {
+      showToast('Total JP harus berupa angka antara 1 sampai 15.', 'error');
+      return;
+    }
+
+    if (timeForm.active_days.length === 0) {
+      showToast('Pilih minimal 1 hari aktif sekolah.', 'error');
+      return;
+    }
+
+    try {
+      const res = await apiFetch(`${API_BASE}/time-settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          active_days: timeForm.active_days,
+          total_jp: totalJpVal,
+          breaks: timeForm.breaks.map(Number)
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setTimeSettings(data);
+        showToast('Pengaturan waktu berhasil disimpan!', 'success');
+        
+        const slotsRes = await apiFetch(`${API_BASE}/slots`);
+        if (slotsRes.ok) {
+          const s = await slotsRes.json();
+          setSlots(s);
+        }
+      } else {
+        showToast(data.error || 'Gagal menyimpan pengaturan waktu.', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Koneksi server gagal.', 'error');
+    }
+  };
+
   // ==========================================
   // MATRIX RENDERING PREPARATIONS
   // ==========================================
-  const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+  const days = timeSettings?.active_days || ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 
   // Group slots by day
   const slotsByDay = {};
@@ -999,8 +1062,9 @@ function App() {
     return list.sort((a, b) => a.nama_guru.localeCompare(b.nama_guru));
   }, [activeClassPlots]);
 
-  // Determine row count based on Monday's slots (which has 17 slots)
-  const totalRows = slotsByDay['Senin'] ? slotsByDay['Senin'].length : 0;
+  // Determine row count based on the first active day's slots
+  const firstActiveDay = days[0] || 'Senin';
+  const totalRows = slotsByDay[firstActiveDay] ? slotsByDay[firstActiveDay].length : 0;
 
   if (!token) {
     return (
@@ -1410,23 +1474,25 @@ function App() {
                   </thead>
                   <tbody>
                     {totalRows > 0 && Array.from({ length: totalRows }).map((_, rowIndex) => {
-                      // Look up Monday slot to decide if row is break
-                      const referenceSlot = slotsByDay['Senin'] ? slotsByDay['Senin'][rowIndex] : null;
+                      const referenceSlot = slotsByDay[firstActiveDay] ? slotsByDay[firstActiveDay][rowIndex] : null;
                       if (!referenceSlot) return null;
 
-                      const isBreakRow = referenceSlot.is_istirahat;
+                      const isBreakRow = referenceSlot.is_istirahat || (timeSettings?.breaks && timeSettings.breaks.includes(referenceSlot.jam_ke));
 
                       if (isBreakRow) {
+                        const breakLabel = (timeSettings?.breaks && timeSettings.breaks.includes(referenceSlot.jam_ke)) 
+                          ? "--- ISTIRAHAT ---" 
+                          : (referenceSlot.keterangan || "ISTIRAHAT");
                         return (
                           <tr key={rowIndex} className="border-b border-slate-800/50">
                             <td className="py-2.5 px-3 bg-slate-950/80 border-r border-slate-800 text-center text-xs font-semibold text-slate-400">
-                              {referenceSlot.keterangan}
+                              ISTIRAHAT
                             </td>
-                            {/* Colspan across all 6 day columns */}
-                            <td colSpan={6} className="py-2.5 px-4 bg-slate-800/40 text-center font-bold text-xs tracking-wider text-slate-400 italic">
-                              ☕ {referenceSlot.keterangan.toUpperCase()} (
+                            {/* Colspan across all day columns */}
+                            <td colSpan={days.length} className="py-2.5 px-4 bg-slate-800/40 text-center font-bold text-xs tracking-wider text-slate-400 italic">
+                              ☕ {breakLabel.toUpperCase()} (
                               {referenceSlot.jam_mulai} - {referenceSlot.jam_selesai} 
-                              {slotsByDay['Jumat'] && slotsByDay['Jumat'][rowIndex] && (
+                              {days.includes('Jumat') && slotsByDay['Jumat'] && slotsByDay['Jumat'][rowIndex] && (
                                 <span> | Jumat: {slotsByDay['Jumat'][rowIndex].jam_mulai} - {slotsByDay['Jumat'][rowIndex].jam_selesai}</span>
                               )}
                               )
@@ -1674,6 +1740,7 @@ function App() {
                   { id: 'mapel', label: '📚 Mata Pelajaran' },
                   { id: 'slot', label: '⏰ Waktu & Slot' },
                   { id: 'plot', label: '🎯 Plotting Beban Mengajar' },
+                  { id: 'timeSetting', label: '⚙️ Pengaturan Waktu' },
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -2279,6 +2346,118 @@ function App() {
                 </div>
               )}
 
+              {masterSubTab === 'timeSetting' && (
+                <div>
+                  <h2 className="text-base font-bold text-slate-200 mb-4 border-b border-slate-800 pb-2">
+                    ⚙️ Pengaturan Slot Waktu & Istirahat Sekolah
+                  </h2>
+                  
+                  <div className="bg-slate-950 border border-slate-800 p-6 rounded-xl shadow-md max-w-2xl flex flex-col gap-6">
+                    <form onSubmit={saveTimeSettings} className="flex flex-col gap-6">
+                      
+                      {/* Hari Aktif Checkboxes */}
+                      <div className="flex flex-col gap-2">
+                        <label className="text-sm font-semibold text-slate-350">
+                          1. Pilih Hari Sekolah Aktif
+                        </label>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-1">
+                          {['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'].map((day) => {
+                            const isChecked = timeForm.active_days.includes(day);
+                            return (
+                              <label key={day} className="flex items-center gap-3 p-3 rounded-lg border border-slate-850 bg-slate-900/60 cursor-pointer hover:border-slate-755 hover:bg-slate-900 transition-all select-none">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={(e) => {
+                                    const nextDays = e.target.checked
+                                      ? [...timeForm.active_days, day]
+                                      : timeForm.active_days.filter(d => d !== day);
+                                    setTimeForm({ ...timeForm, active_days: nextDays });
+                                  }}
+                                  className="rounded border-slate-800 bg-slate-950 text-indigo-600 focus:ring-indigo-500 h-4 w-4 cursor-pointer"
+                                />
+                                <span className="text-xs font-medium text-slate-200">{day}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Total JP Input */}
+                      <div className="flex flex-col gap-2">
+                        <label className="text-sm font-semibold text-slate-350" htmlFor="total_jp_input">
+                          2. Total Jam Pelajaran (JP) per Hari
+                        </label>
+                        <input
+                          id="total_jp_input"
+                          type="number"
+                          min="1"
+                          max="15"
+                          value={timeForm.total_jp}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 0;
+                            setTimeForm({ ...timeForm, total_jp: val });
+                          }}
+                          className="w-full sm:w-1/3 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
+                        />
+                        <span className="text-[11px] text-slate-500">
+                          Masukkan jumlah total jam pelajaran sekolah per hari (contoh: 8, 10, atau 12 JP).
+                        </span>
+                      </div>
+
+                      {/* Break Slots Checkboxes */}
+                      <div className="flex flex-col gap-2">
+                        <label className="text-sm font-semibold text-slate-350">
+                          3. Tentukan Jam Ke- Berapa yang merupakan Istirahat
+                        </label>
+                        <span className="text-[11px] text-slate-500 -mt-1">
+                          Jam ke yang dipilih akan secara otomatis dikunci sebagai waktu istirahat secara global untuk semua kelas.
+                        </span>
+                        
+                        {timeForm.total_jp > 0 ? (
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-1">
+                            {Array.from({ length: Number(timeForm.total_jp) }).map((_, idx) => {
+                              const jpNumber = idx + 1;
+                              const isChecked = timeForm.breaks.includes(jpNumber);
+                              return (
+                                <label key={jpNumber} className="flex items-center gap-3 p-3 rounded-lg border border-slate-850 bg-slate-900/60 cursor-pointer hover:border-slate-755 hover:bg-slate-900 transition-all select-none">
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={(e) => {
+                                      const nextBreaks = e.target.checked
+                                        ? [...timeForm.breaks, jpNumber]
+                                        : timeForm.breaks.filter(b => b !== jpNumber);
+                                      setTimeForm({ ...timeForm, breaks: nextBreaks });
+                                    }}
+                                    className="rounded border-slate-800 bg-slate-950 text-rose-600 focus:ring-rose-500 h-4 w-4 cursor-pointer"
+                                  />
+                                  <span className="text-xs font-semibold text-slate-200">Jam Ke-{jpNumber}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <span className="text-xs italic text-slate-600">
+                            (Masukkan Total JP terlebih dahulu untuk memunculkan slot istirahat)
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="mt-2 pt-4 border-t border-slate-800/80 flex justify-end">
+                        <button
+                          type="submit"
+                          className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-5 py-3 rounded-lg shadow-lg cursor-pointer transition-colors"
+                        >
+                          Simpan Pengaturan
+                        </button>
+                      </div>
+
+                    </form>
+                  </div>
+                </div>
+              )}
+
             </div>
           </div>
         )}
@@ -2381,21 +2560,24 @@ function App() {
                     </thead>
                     <tbody>
                       {totalRows > 0 && Array.from({ length: totalRows }).map((_, rowIndex) => {
-                        const referenceSlot = slotsByDay['Senin'] ? slotsByDay['Senin'][rowIndex] : null;
+                        const referenceSlot = slotsByDay[firstActiveDay] ? slotsByDay[firstActiveDay][rowIndex] : null;
                         if (!referenceSlot) return null;
 
-                        const isBreakRow = referenceSlot.is_istirahat;
+                        const isBreakRow = referenceSlot.is_istirahat || (timeSettings?.breaks && timeSettings.breaks.includes(referenceSlot.jam_ke));
 
                         if (isBreakRow) {
+                          const breakLabel = (timeSettings?.breaks && timeSettings.breaks.includes(referenceSlot.jam_ke)) 
+                            ? "--- ISTIRAHAT ---" 
+                            : (referenceSlot.keterangan || "ISTIRAHAT");
                           return (
                             <tr key={rowIndex} className="border border-slate-400">
                               <td className="py-2 px-2 border border-slate-400 text-center bg-slate-100 font-bold text-[10px] text-slate-700">
                                 ISTIRAHAT
                               </td>
-                              <td colSpan={6} className="py-2 px-2 text-center bg-slate-100/70 font-bold text-[10px] italic tracking-widest text-slate-650">
-                                {referenceSlot.keterangan.toUpperCase()} (
+                              <td colSpan={days.length} className="py-2 px-2 text-center bg-slate-100/70 font-bold text-[10px] italic tracking-widest text-slate-650">
+                                {breakLabel.toUpperCase()} (
                                 {referenceSlot.jam_mulai} - {referenceSlot.jam_selesai}
-                                {slotsByDay['Jumat'] && slotsByDay['Jumat'][rowIndex] && (
+                                {days.includes('Jumat') && slotsByDay['Jumat'] && slotsByDay['Jumat'][rowIndex] && (
                                   <span> | Jumat: {slotsByDay['Jumat'][rowIndex].jam_mulai} - {slotsByDay['Jumat'][rowIndex].jam_selesai}</span>
                                 )}
                                 )
@@ -2592,21 +2774,24 @@ function App() {
                     </thead>
                     <tbody>
                       {totalRows > 0 && Array.from({ length: totalRows }).map((_, rowIndex) => {
-                        const referenceSlot = slotsByDay['Senin'] ? slotsByDay['Senin'][rowIndex] : null;
+                        const referenceSlot = slotsByDay[firstActiveDay] ? slotsByDay[firstActiveDay][rowIndex] : null;
                         if (!referenceSlot) return null;
 
-                        const isBreakRow = referenceSlot.is_istirahat;
+                        const isBreakRow = referenceSlot.is_istirahat || (timeSettings?.breaks && timeSettings.breaks.includes(referenceSlot.jam_ke));
 
                         if (isBreakRow) {
+                          const breakLabel = (timeSettings?.breaks && timeSettings.breaks.includes(referenceSlot.jam_ke)) 
+                            ? "--- ISTIRAHAT ---" 
+                            : (referenceSlot.keterangan || "ISTIRAHAT");
                           return (
                             <tr key={rowIndex} className="border border-slate-400">
                               <td className="py-2 px-2 border border-slate-400 text-center bg-slate-100 font-bold text-[10px] text-slate-700">
                                 ISTIRAHAT
                               </td>
-                              <td colSpan={6} className="py-2 px-2 text-center bg-slate-100/70 font-bold text-[10px] italic tracking-widest text-slate-650">
-                                {referenceSlot.keterangan.toUpperCase()} (
+                              <td colSpan={days.length} className="py-2 px-2 text-center bg-slate-100/70 font-bold text-[10px] italic tracking-widest text-slate-650">
+                                {breakLabel.toUpperCase()} (
                                 {referenceSlot.jam_mulai} - {referenceSlot.jam_selesai}
-                                {slotsByDay['Jumat'] && slotsByDay['Jumat'][rowIndex] && (
+                                {days.includes('Jumat') && slotsByDay['Jumat'] && slotsByDay['Jumat'][rowIndex] && (
                                   <span> | Jumat: {slotsByDay['Jumat'][rowIndex].jam_mulai} - {slotsByDay['Jumat'][rowIndex].jam_selesai}</span>
                                 )}
                                 )

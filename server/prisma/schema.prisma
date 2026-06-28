@@ -23,9 +23,23 @@ model User {
   jadwals        Jadwal[]
   schoolProfiles SchoolProfile[]
   blockedSlots   BlockedSlot[]
+  timeSetting    TimeSetting?
 
   @@map("users")
 }
+
+model TimeSetting {
+  id          Int      @id @default(autoincrement())
+  user_id     Int      @unique
+  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  active_days Json     // e.g. ["Senin", "Selasa", "Rabu", "Kamis", "Jumat"]
+  total_jp    Int      // e.g. 8 or 10
+  breaks      Json     // e.g. [4, 7]
+
+  @@index([user_id])
+  @@map("time_settings")
+}
+
 
 model Guru {
   id        Int     @id @default(autoincrement())

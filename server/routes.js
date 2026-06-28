@@ -404,13 +404,53 @@ router.delete('/mapels/:id', asyncHandler(async (req, res) => {
 // 4. MASTER DATA: SLOTS
 // ==========================================
 router.get('/slots', asyncHandler(async (req, res) => {
-  const slots = await prisma.slot.findMany({
-    where: { user_id: req.user.id },
-    orderBy: [
-      { id: 'asc' }
-    ]
-  });
-  res.json(slots);
+  const [setting, slots] = await Promise.all([
+    prisma.timeSetting.findUnique({
+      where: { user_id: req.user.id }
+    }),
+    prisma.slot.findMany({
+      where: { user_id: req.user.id },
+      orderBy: [
+        { id: 'asc' }
+      ]
+    })
+  ]);
+
+  const active_days = setting ? setting.active_days : ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+  const total_jp = setting ? setting.total_jp : 10;
+  const breaks = (setting && Array.isArray(setting.breaks)) ? setting.breaks : [];
+
+  // Filter slots to be within active_days and total_jp
+  let filteredSlots = [];
+  const dayCounters = {};
+  for (const slot of slots) {
+    if (!active_days.includes(slot.hari)) {
+      continue;
+    }
+    if (!dayCounters[slot.hari]) {
+      dayCounters[slot.hari] = 0;
+    }
+    if (slot.is_istirahat) {
+      if (dayCounters[slot.hari] >= total_jp) {
+        continue;
+      }
+      filteredSlots.push(slot);
+    } else {
+      if (slot.jam_ke !== null) {
+        if (dayCounters[slot.hari] < total_jp) {
+          dayCounters[slot.hari]++;
+          const isBreak = breaks.includes(slot.jam_ke);
+          filteredSlots.push({
+            ...slot,
+            is_istirahat: isBreak || slot.is_istirahat,
+            keterangan: isBreak ? '--- ISTIRAHAT ---' : slot.keterangan
+          });
+        }
+      }
+    }
+  }
+
+  res.json(filteredSlots);
 }));
 
 router.put('/slots/:id', asyncHandler(async (req, res) => {
@@ -1190,6 +1230,48 @@ router.delete('/blocked-slots/:id', asyncHandler(async (req, res) => {
 
   await prisma.blockedSlot.delete({ where: { id } });
   res.json({ message: 'Kunci slot berhasil dihapus.' });
+}));
+
+// ==========================================
+// 9. TIME SETTINGS (PENGATURAN HARI AKTIF, JP, & ISTIRAHAT GLOBAL)
+// ==========================================
+router.get('/time-settings', asyncHandler(async (req, res) => {
+  const setting = await prisma.timeSetting.findUnique({
+    where: { user_id: req.user.id }
+  });
+  if (!setting) {
+    return res.json({
+      active_days: ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'],
+      total_jp: 10,
+      breaks: []
+    });
+  }
+  res.json(setting);
+}));
+
+router.post('/time-settings', asyncHandler(async (req, res) => {
+  const { active_days, total_jp, breaks } = req.body;
+
+  if (!Array.isArray(active_days) || typeof total_jp !== 'number' || !Array.isArray(breaks)) {
+    return res.status(400).json({ error: 'Input tidak valid.' });
+  }
+
+  const setting = await prisma.timeSetting.upsert({
+    where: { user_id: req.user.id },
+    update: {
+      active_days,
+      total_jp,
+      breaks
+    },
+    create: {
+      user_id: req.user.id,
+      active_days,
+      total_jp,
+      breaks
+    }
+  });
+
+  res.json(setting);
 }));
 
 export default router;

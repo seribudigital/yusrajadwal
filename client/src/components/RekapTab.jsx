@@ -1,4 +1,5 @@
 import React from 'react';
+import * as XLSX from 'xlsx';
 
 const getBlockedIcon = (label) => {
   if (!label) return '🔒';
@@ -35,6 +36,158 @@ const RekapTab = React.memo(function RekapTab({
   tanggalPengesahan,
   setTanggalPengesahan
 }) {
+  const handleDownloadExcelKelas = React.useCallback(() => {
+    const activeClasses = (kelas || []).filter(k => {
+      const name = k.nama_kelas?.toUpperCase() || '';
+      return name !== 'OFFLINE' && name !== 'SIBUK' && name !== 'KELAS SIBUK';
+    });
+
+    const aoa = [
+      [`JADWAL PELAJARAN ${schoolProfile?.nama_sekolah?.toUpperCase() || 'SEKOLAH'}`],
+      [`Tahun Ajaran: ${schoolProfile?.tahun_ajaran || '2026/2027'} | Semester: ${schoolProfile?.semester || 'Ganjil'}`],
+      []
+    ];
+
+    (days || []).forEach(day => {
+      const slotsForThisDay = slotsByDay[day] || [];
+      if (slotsForThisDay.length === 0) return;
+
+      aoa.push([`HARI: ${day.toUpperCase()}`]);
+      aoa.push(['Jam Ke', 'Waktu', ...activeClasses.map(k => `Kelas ${k.nama_kelas}`)]);
+
+      slotsForThisDay.forEach(slot => {
+        if (day === 'Sabtu' && slot.jam_ke !== null && slot.jam_ke > 8) return;
+
+        if (slot.is_istirahat) {
+          const breakLabel = slot.keterangan || 'ISTIRAHAT';
+          aoa.push([
+            'ISTIRAHAT',
+            `${slot.jam_mulai} - ${slot.jam_selesai}`,
+            ...activeClasses.map(() => breakLabel.toUpperCase())
+          ]);
+        } else {
+          const rowCells = activeClasses.map(k => {
+            const scheduled = (jadwals || []).find(
+              j => j.slot_id === slot.id && j.plot?.kelas_id === k.id
+            );
+            const blocked = (blockedSlots || []).find(
+              bs => bs.slot_id === slot.id && bs.kelas_id === k.id
+            );
+
+            if (scheduled) {
+              const mapelName = scheduled.plot?.mapel?.nama_mapel || '';
+              const guruNames = scheduled.plot?.gurus && scheduled.plot.gurus.length > 0
+                ? scheduled.plot.gurus.map(g => g.nama_guru).join(', ')
+                : (scheduled.plot?.guru?.nama_guru || '');
+              return guruNames ? `${mapelName}\n(${guruNames})` : mapelName;
+            } else if (blocked) {
+              return blocked.label || 'Terblokir';
+            }
+            return '-';
+          });
+
+          aoa.push([
+            `Jam ${slot.jam_ke}`,
+            `${slot.jam_mulai} - ${slot.jam_selesai}`,
+            ...rowCells
+          ]);
+        }
+      });
+      aoa.push([]); // blank row after each day
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const colWidths = [
+      { wch: 12 },
+      { wch: 16 },
+      ...activeClasses.map(() => ({ wch: 28 }))
+    ];
+    ws['!cols'] = colWidths;
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Rekap Per Kelas');
+
+    const rawSchoolName = schoolProfile?.nama_sekolah || 'Sekolah';
+    const safeSchoolName = rawSchoolName.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+    XLSX.writeFile(wb, `Rekap_Jadwal_Kelas_${safeSchoolName || 'Sekolah'}.xlsx`);
+  }, [kelas, days, slotsByDay, jadwals, blockedSlots, schoolProfile]);
+
+  const handleDownloadExcelGuru = React.useCallback(() => {
+    const activeGurus = (gurus || []).filter(g => {
+      const name = g.nama_guru?.toUpperCase() || '';
+      return name !== 'OFFLINE' && name !== 'SIBUK' && name !== 'KOSONG';
+    });
+
+    const aoa = [
+      [`JADWAL MENGAJAR GURU - ${schoolProfile?.nama_sekolah?.toUpperCase() || 'SEKOLAH'}`],
+      [`Tahun Ajaran: ${schoolProfile?.tahun_ajaran || '2026/2027'} | Semester: ${schoolProfile?.semester || 'Ganjil'}`],
+      []
+    ];
+
+    (days || []).forEach(day => {
+      const slotsForThisDay = slotsByDay[day] || [];
+      if (slotsForThisDay.length === 0) return;
+
+      aoa.push([`HARI: ${day.toUpperCase()}`]);
+      aoa.push(['Jam Ke', 'Waktu', ...activeGurus.map(g => g.nama_guru)]);
+
+      slotsForThisDay.forEach(slot => {
+        if (day === 'Sabtu' && slot.jam_ke !== null && slot.jam_ke > 8) return;
+
+        if (slot.is_istirahat) {
+          const breakLabel = slot.keterangan || 'ISTIRAHAT';
+          aoa.push([
+            'ISTIRAHAT',
+            `${slot.jam_mulai} - ${slot.jam_selesai}`,
+            ...activeGurus.map(() => breakLabel.toUpperCase())
+          ]);
+        } else {
+          const rowCells = activeGurus.map(g => {
+            const scheduled = (jadwals || []).find(
+              j => j.slot_id === slot.id && (
+                j.plot?.gurus
+                  ? j.plot.gurus.some(guru => guru.id === g.id)
+                  : j.plot?.guru_id === g.id
+              )
+            );
+
+            if (scheduled) {
+              const className = scheduled.plot?.kelas?.nama_kelas?.toUpperCase() || '';
+              if (['OFFLINE', 'SIBUK', 'KELAS SIBUK'].includes(className)) {
+                return '-';
+              }
+              const mapelName = scheduled.plot?.mapel?.nama_mapel || '';
+              return `Kelas ${scheduled.plot?.kelas?.nama_kelas || ''}\n(${mapelName})`;
+            }
+            return '-';
+          });
+
+          aoa.push([
+            `Jam ${slot.jam_ke}`,
+            `${slot.jam_mulai} - ${slot.jam_selesai}`,
+            ...rowCells
+          ]);
+        }
+      });
+      aoa.push([]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const colWidths = [
+      { wch: 12 },
+      { wch: 16 },
+      ...activeGurus.map(() => ({ wch: 26 }))
+    ];
+    ws['!cols'] = colWidths;
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Rekap Per Guru');
+
+    const rawSchoolName = schoolProfile?.nama_sekolah || 'Sekolah';
+    const safeSchoolName = rawSchoolName.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+    XLSX.writeFile(wb, `Rekap_Jadwal_Guru_${safeSchoolName || 'Sekolah'}.xlsx`);
+  }, [gurus, days, slotsByDay, jadwals, schoolProfile]);
+
   return (
     <div className="flex flex-col gap-8 print:p-0">
       
@@ -62,6 +215,13 @@ const RekapTab = React.memo(function RekapTab({
             >
               Cetak PDF
             </button>
+            <button
+              onClick={handleDownloadExcelKelas}
+              className="bg-emerald-700 hover:bg-emerald-600 border border-emerald-600 text-white font-bold px-4 py-1.5 rounded-lg text-xs cursor-pointer flex items-center gap-1.5 shadow transition-all"
+              title="Download Rekap Jadwal Seluruh Kelas (Excel)"
+            >
+              <span>📥</span> Cetak Excel (Per Kelas)
+            </button>
           </div>
         </div>
 
@@ -86,6 +246,13 @@ const RekapTab = React.memo(function RekapTab({
               className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-1.5 rounded-lg text-xs cursor-pointer"
             >
               Cetak PDF
+            </button>
+            <button
+              onClick={handleDownloadExcelGuru}
+              className="bg-emerald-700 hover:bg-emerald-600 border border-emerald-600 text-white font-bold px-4 py-1.5 rounded-lg text-xs cursor-pointer flex items-center gap-1.5 shadow transition-all"
+              title="Download Rekap Agenda Seluruh Guru (Excel)"
+            >
+              <span>📥</span> Cetak Excel (Per Guru)
             </button>
           </div>
         </div>

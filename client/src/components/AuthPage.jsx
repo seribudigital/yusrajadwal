@@ -27,26 +27,31 @@ const AuthPage = React.memo(function AuthPage({
               <h2 className="text-xl font-bold bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">
                 Yusra Jadwal
               </h2>
-              <p className="text-xs text-slate-400">Online SaaS Platform</p>
+              <p className="text-xs text-slate-400">Platform Penjadwalan Sekolah</p>
             </div>
           </div>
           
           <div className="my-8 md:my-0 space-y-6">
-            <h3 className="text-2xl font-bold text-white leading-tight">
-              Penyusunan Jadwal Sekolah Jadi Lebih Mudah dan Cepat.
-            </h3>
+            <div>
+              <h3 className="text-2xl font-bold text-white leading-tight">
+                Susun Jadwal Sekolah Anti-Pusing, Instan, dan Akurat.
+              </h3>
+              <p className="text-sm text-slate-300 mt-2 leading-relaxed">
+                Platform Asisten Cerdas untuk Manajemen Waktu dan Penjadwalan Sekolah Modern.
+              </p>
+            </div>
             <ul className="space-y-4 text-sm text-slate-300">
               <li className="flex items-start gap-3">
                 <span className="text-emerald-400 font-bold">✓</span>
-                <span><strong>Early Warning System:</strong> Validasi otomatis anti-bentrok guru dan kelas secara real-time.</span>
+                <span><strong>Anti-Bentrok & Real-Time:</strong> Validasi otomatis yang instan mengunci jadwal jika ada guru atau kelas yang bertabrakan di hari yang sama.</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-emerald-400 font-bold">✓</span>
-                <span><strong>Multi-Tenant SaaS:</strong> Data sekolah Anda aman terisolasi di database cloud.</span>
+                <span><strong>Atur Waktu & Istirahat Dinamis:</strong> Bebas atur jumlah hari kerja dan total jam pelajaran. Slot istirahat menyisip otomatis tanpa memotong kuota jam belajar efektif.</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-emerald-400 font-bold">✓</span>
-                <span><strong>Interactive Drag & Drop:</strong> Susun jadwal pelajaran langsung di grid interaktif.</span>
+                <span><strong>Grid Interaktif Drag & Drop:</strong> Menyusun jadwal semudah menggeser kotak pelajaran langsung di layar browser Anda, lengkap dengan fitur gembok kustom per kelas.</span>
               </li>
             </ul>
           </div>

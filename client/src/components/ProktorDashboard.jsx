@@ -147,29 +147,30 @@ export default function ProktorDashboard({ token, user, setUser, setToken, showT
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans overflow-x-hidden w-full">
       {/* Top Header */}
-      <header className="border-b border-slate-800 bg-slate-900/60 backdrop-blur-md sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">⚡</span>
-            <div>
-              <h1 className="text-lg font-bold bg-gradient-to-r from-cyan-400 to-indigo-400 bg-clip-text text-transparent">
+      <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-30 w-full">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2.5 sm:py-0 sm:h-16 flex flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <span className="text-2xl shrink-0">⚡</span>
+            <div className="min-w-0">
+              <h1 className="text-base sm:text-lg font-bold bg-gradient-to-r from-cyan-400 to-indigo-400 bg-clip-text text-transparent truncate">
                 Yusra Jadwal Proktor
               </h1>
-              <p className="text-[10px] text-indigo-400 font-semibold tracking-wider uppercase">System Super Admin</p>
+              <p className="text-[9px] sm:text-[10px] text-indigo-400 font-semibold tracking-wider uppercase truncate">System Super Admin</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="flex flex-col text-right">
+          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+            <div className="hidden sm:flex flex-col text-right">
               <span className="text-xs font-semibold text-slate-300">{user?.email}</span>
               <span className="text-[10px] text-emerald-400 font-medium">Proktor Active</span>
             </div>
             <button
               onClick={handleLogout}
-              className="bg-rose-950/40 hover:bg-rose-900/60 border border-rose-900/50 hover:border-rose-500/50 text-rose-300 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer"
+              className="bg-rose-950/40 hover:bg-rose-900/60 border border-rose-900/50 hover:border-rose-500/50 text-rose-300 px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1"
             >
-              Logout Proktor 🚪
+              <span>Logout</span>
+              <span>🚪</span>
             </button>
           </div>
         </div>

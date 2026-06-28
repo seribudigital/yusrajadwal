@@ -37,11 +37,11 @@ const MasterDataTab = React.memo(function MasterDataTab({
   handleImportGuru
 }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 sm:gap-6 w-full max-w-full overflow-hidden">
       
       {/* Master Navigation Left Sidebar */}
-      <div className="md:col-span-1 bg-slate-900 border border-slate-800 rounded-xl p-3 shadow-xl h-fit">
-        <nav className="flex flex-col gap-1">
+      <div className="md:col-span-1 bg-slate-900 border border-slate-800 rounded-xl p-2 sm:p-3 shadow-xl h-fit max-w-full overflow-hidden">
+        <nav className="flex flex-row md:flex-col gap-1.5 overflow-x-auto whitespace-nowrap pb-1 md:pb-0 no-scrollbar">
           {[
             { id: 'guru', label: '👨‍🏫 Guru' },
             { id: 'kelas', label: '🏫 Kelas' },
@@ -53,7 +53,7 @@ const MasterDataTab = React.memo(function MasterDataTab({
             <button
               key={tab.id}
               onClick={() => setMasterSubTab(tab.id)}
-              className={`w-full text-left px-4 py-2.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
+              className={`w-auto md:w-full shrink-0 text-left px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer ${
                 masterSubTab === tab.id
                   ? 'bg-indigo-600 text-white shadow-md'
                   : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'

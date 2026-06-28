@@ -1187,7 +1187,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans overflow-x-hidden w-full">
       
       {/* Global Announcement Banner */}
       {announcement && (
@@ -1215,95 +1215,120 @@ function App() {
       </div>
 
       {/* Header / Navbar */}
-      <header className="border-b border-slate-800 bg-slate-900/60 backdrop-blur-md sticky top-0 z-30 print:hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">🗓️</span>
-            <div>
-              <h1 className="text-lg font-bold bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">
-                Yusra Jadwal
-              </h1>
-              <p className="text-xs text-slate-400 font-medium">{user ? user.nama_sekolah : 'Semi-Otomatis & Anti-Bentrok'}</p>
+      <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-30 print:hidden w-full">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2.5 lg:py-0 lg:h-16 flex flex-col lg:flex-row items-center justify-between gap-2.5 lg:gap-4">
+          {/* Top Row on Mobile / Left Section on Desktop */}
+          <div className="flex items-center justify-between w-full lg:w-auto">
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              <span className="text-2xl shrink-0">🗓️</span>
+              <div className="min-w-0">
+                <h1 className="text-base sm:text-lg font-bold bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent truncate">
+                  Yusra Jadwal
+                </h1>
+                <p className="text-[11px] sm:text-xs text-slate-400 font-medium truncate max-w-[200px] sm:max-w-none">
+                  {user ? user.nama_sekolah : 'Semi-Otomatis & Anti-Bentrok'}
+                </p>
+              </div>
+            </div>
+
+            {/* Logout button on mobile top bar */}
+            <div className="flex lg:hidden items-center gap-2 shrink-0 ml-2">
+              <button
+                onClick={() => {
+                  localStorage.removeItem('token');
+                  localStorage.removeItem('user');
+                  setToken(null);
+                  setUser(null);
+                  showToast('Anda telah keluar.');
+                }}
+                className="bg-rose-950/40 hover:bg-rose-900/60 border border-rose-900/50 hover:border-rose-500/50 text-rose-300 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1"
+              >
+                <span>Logout</span>
+                <span>🚪</span>
+              </button>
             </div>
           </div>
           
-          <div className="flex items-center gap-4">
-            <nav className="flex bg-slate-950 border border-slate-800 p-1 rounded-lg">
-            <button
-              onClick={() => setActiveTab('profil')}
-              className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${
-                activeTab === 'profil'
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              Profil Sekolah
-            </button>
-            <button
-              onClick={() => setActiveTab('master')}
-              className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${
-                activeTab === 'master'
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              Data Master
-            </button>
-            <button
-              onClick={() => setActiveTab('jadwal')}
-              className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${
-                activeTab === 'jadwal'
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              Penyusunan Jadwal
-            </button>
-            <button
-              onClick={() => setActiveTab('rekap')}
-              className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${
-                activeTab === 'rekap'
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              Cetak / Rekap
-            </button>
-            <button
-              onClick={() => setActiveTab('panduan')}
-              className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${
-                activeTab === 'panduan'
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              Panduan Pengguna
-            </button>
-          </nav>
-          <div className="flex items-center gap-2 border-l border-slate-800 pl-4">
-            <div className="hidden md:flex flex-col text-right">
-              <span className="text-xs font-semibold text-slate-300">{user?.email}</span>
-              <span className="text-[10px] text-slate-500 font-medium">Online</span>
+          {/* Bottom Row on Mobile / Right Section on Desktop */}
+          <div className="flex items-center gap-3 w-full lg:w-auto justify-between lg:justify-end">
+            <nav className="flex bg-slate-950 border border-slate-800 p-1 rounded-lg overflow-x-auto whitespace-nowrap w-full lg:w-auto max-w-full justify-start lg:justify-center no-scrollbar">
+              <button
+                onClick={() => setActiveTab('profil')}
+                className={`px-3 sm:px-4 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 shrink-0 cursor-pointer ${
+                  activeTab === 'profil'
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Profil Sekolah
+              </button>
+              <button
+                onClick={() => setActiveTab('master')}
+                className={`px-3 sm:px-4 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 shrink-0 cursor-pointer ${
+                  activeTab === 'master'
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Data Master
+              </button>
+              <button
+                onClick={() => setActiveTab('jadwal')}
+                className={`px-3 sm:px-4 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 shrink-0 cursor-pointer ${
+                  activeTab === 'jadwal'
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Penyusunan Jadwal
+              </button>
+              <button
+                onClick={() => setActiveTab('rekap')}
+                className={`px-3 sm:px-4 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 shrink-0 cursor-pointer ${
+                  activeTab === 'rekap'
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Cetak / Rekap
+              </button>
+              <button
+                onClick={() => setActiveTab('panduan')}
+                className={`px-3 sm:px-4 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 shrink-0 cursor-pointer ${
+                  activeTab === 'panduan'
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Panduan Pengguna
+              </button>
+            </nav>
+
+            {/* User & Logout on Desktop */}
+            <div className="hidden lg:flex items-center gap-2 border-l border-slate-800 pl-4 shrink-0">
+              <div className="flex flex-col text-right">
+                <span className="text-xs font-semibold text-slate-300">{user?.email}</span>
+                <span className="text-[10px] text-slate-500 font-medium">Online</span>
+              </div>
+              <button
+                onClick={() => {
+                  localStorage.removeItem('token');
+                  localStorage.removeItem('user');
+                  setToken(null);
+                  setUser(null);
+                  showToast('Anda telah keluar.');
+                }}
+                className="bg-rose-950/40 hover:bg-rose-900/60 border border-rose-900/50 hover:border-rose-500/50 text-rose-300 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0"
+              >
+                Logout 🚪
+              </button>
             </div>
-            <button
-              onClick={() => {
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
-                setToken(null);
-                setUser(null);
-                showToast('Anda telah keluar.');
-              }}
-              className="bg-rose-950/40 hover:bg-rose-900/60 border border-rose-900/50 hover:border-rose-500/50 text-rose-300 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer"
-            >
-              Logout 🚪
-            </button>
           </div>
         </div>
-      </div>
-    </header>
+      </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 overflow-x-hidden">
         
         {/* =======================================================
             TAB 1: INTERACTIVE SCHEDULING (DRAG & DROP)

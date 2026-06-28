@@ -167,7 +167,7 @@ const RekapTab = React.memo(function RekapTab({
                         const slotsForThisDay = slotsByDay[day] || [];
                         const slot = slotsForThisDay[rowIndex];
 
-                        if (day === 'Sabtu' && rowIndex > 8) {
+                        if (day === 'Sabtu' && (!slot || (slot.jam_ke !== null && slot.jam_ke > 8))) {
                           return (
                             <td key={day} className="py-3 px-2 border border-slate-400 text-center bg-slate-100/40 text-slate-400 font-semibold italic">
                               -
@@ -379,7 +379,7 @@ const RekapTab = React.memo(function RekapTab({
                         const slotsForThisDay = slotsByDay[day] || [];
                         const slot = slotsForThisDay[rowIndex];
 
-                        if (day === 'Sabtu' && rowIndex > 8) {
+                        if (day === 'Sabtu' && (!slot || (slot.jam_ke !== null && slot.jam_ke > 8))) {
                           return (
                             <td key={day} className="py-3 px-2 border border-slate-400 text-center bg-slate-100/40 text-slate-400 font-semibold italic">
                               -

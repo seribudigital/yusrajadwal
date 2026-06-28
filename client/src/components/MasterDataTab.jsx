@@ -46,9 +46,9 @@ const MasterDataTab = React.memo(function MasterDataTab({
             { id: 'guru', label: '👨‍🏫 Guru' },
             { id: 'kelas', label: '🏫 Kelas' },
             { id: 'mapel', label: '📚 Mata Pelajaran' },
+            { id: 'timeSetting', label: '⚙️ Pengaturan Waktu' },
             { id: 'slot', label: '⏰ Waktu & Slot' },
             { id: 'plot', label: '🎯 Plotting Beban Mengajar' },
-            { id: 'timeSetting', label: '⚙️ Pengaturan Waktu' },
           ].map((tab) => (
             <button
               key={tab.id}

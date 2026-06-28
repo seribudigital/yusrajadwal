@@ -456,9 +456,12 @@ router.get('/slots', asyncHandler(async (req, res) => {
 
       const currentJp = lessonSlot.jam_ke;
       
-      // Find if a break is configured after this JP
-      const matchedBreakConf = configBreaks.find(b => b.after_jp === currentJp);
-      if (matchedBreakConf) {
+      // Find if breaks are configured after this JP
+      const matchedBreakConfs = configBreaks
+        .filter(b => Number(b.after_jp) === Number(currentJp))
+        .sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0));
+
+      for (const matchedBreakConf of matchedBreakConfs) {
         // Find database break slot for this day matching the label prefix (e.g. pagi/siang/sore)
         const breakLabel = matchedBreakConf.label || 'ISTIRAHAT';
         const labelKey = breakLabel.toLowerCase();

@@ -157,7 +157,7 @@ const JadwalBoard = React.memo(function JadwalBoard({
                       const slot = slotsForThisDay[rowIndex];
 
                       // Cutoff Saturday after period 8
-                      if (day === 'Sabtu' && rowIndex > 8) {
+                      if (day === 'Sabtu' && (!slot || (slot.jam_ke !== null && slot.jam_ke > 8))) {
                         return (
                           <td
                             key={day}

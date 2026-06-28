@@ -90,7 +90,7 @@ function App() {
   const [selectedFilterGuruId, setSelectedFilterGuruId] = useState('');
 
   // Sub-tabs inside Master Data
-  const [masterSubTab, setMasterSubTab] = useState('guru'); // 'guru' | 'kelas' | 'mapel' | 'slot' | 'plot'
+  const [masterSubTab, setMasterSubTab] = useState('guru'); // 'guru' | 'kelas' | 'mapel' | 'timeSetting' | 'slot' | 'plot'
 
   // Form States for CRUD
   const [guruForm, setGuruForm] = useState({ id: null, nama_guru: '', nip: '' });
@@ -1068,9 +1068,7 @@ function App() {
   // Group slots by day
   const slotsByDay = {};
   days.forEach((day) => {
-    slotsByDay[day] = slots
-      .filter((s) => s.hari === day)
-      .sort((a, b) => a.id - b.id);
+    slotsByDay[day] = slots.filter((s) => s.hari === day);
   });
 
   // Calculate dynamic sisa jam for a plot

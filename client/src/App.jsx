@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import ProktorDashboard from './components/ProktorDashboard';
 import { useAuth } from './hooks/useAuth';
 import { useMasterData } from './hooks/useMasterData';
@@ -35,13 +35,13 @@ function App() {
   const [toasts, setToasts] = useState([]);
 
   // Helper to show toasts
-  const showToast = (message, type = 'success') => {
+  const showToast = useCallback((message, type = 'success') => {
     const id = Date.now();
     setToasts((prev) => [...prev, { id, message, type }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 4500);
-  };
+  }, []);
 
   // Consume Hooks
   const auth = useAuth(showToast, setActiveTab);

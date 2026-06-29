@@ -1335,10 +1335,15 @@ router.post('/import-master', asyncHandler(async (req, res) => {
 
           if (guruMap.has(key)) {
             const existingId = guruMap.get(key);
-            await tx.guru.update({
-              where: { id: existingId },
-              data: { nip: nip || guruObjMap.get(key)?.nip }
-            });
+            const existingObj = guruObjMap.get(key);
+            const targetNip = nip || existingObj?.nip || null;
+            if (targetNip !== (existingObj?.nip || null)) {
+              await tx.guru.update({
+                where: { id: existingId },
+                data: { nip: targetNip }
+              });
+              if (existingObj) existingObj.nip = targetNip;
+            }
           } else {
             const created = await tx.guru.create({
               data: { nama_guru, nip, user_id: req.user.id }
@@ -1391,10 +1396,15 @@ router.post('/import-master', asyncHandler(async (req, res) => {
 
           if (mapelMap.has(key)) {
             const existingId = mapelMap.get(key);
-            await tx.mapel.update({
-              where: { id: existingId },
-              data: { kode_mapel: kode_mapel || mapelObjMap.get(key)?.kode_mapel }
-            });
+            const existingObj = mapelObjMap.get(key);
+            const targetKode = kode_mapel || existingObj?.kode_mapel || null;
+            if (targetKode !== (existingObj?.kode_mapel || null)) {
+              await tx.mapel.update({
+                where: { id: existingId },
+                data: { kode_mapel: targetKode }
+              });
+              if (existingObj) existingObj.kode_mapel = targetKode;
+            }
           } else {
             const created = await tx.mapel.create({
               data: { nama_mapel, kode_mapel, user_id: req.user.id }
@@ -1505,10 +1515,13 @@ router.post('/import-master', asyncHandler(async (req, res) => {
           });
 
           if (existingPlot) {
-            await tx.plot.update({
-              where: { id: existingPlot.id },
-              data: { beban_jam }
-            });
+            if (existingPlot.beban_jam !== beban_jam) {
+              await tx.plot.update({
+                where: { id: existingPlot.id },
+                data: { beban_jam }
+              });
+              existingPlot.beban_jam = beban_jam;
+            }
           } else {
             const newP = await tx.plot.create({
               data: {
@@ -1529,6 +1542,9 @@ router.post('/import-master', asyncHandler(async (req, res) => {
       }
 
       return { profilCount, guruCount, kelasCount, mapelCount, plotCount };
+    }, {
+      maxWait: 120000,
+      timeout: 120000
     });
 
     res.json({

@@ -168,20 +168,26 @@ export function useMasterData({ apiFetch, API_BASE, showToast, token, user }) {
         setTanggalPengesahan(sp.tanggal_cetak || '');
       }
 
-      // Auto-select first class if not set (excluding OFFLINE if possible)
-      if (k.length > 0) {
-        const firstNonOffline = k.find((klass) => klass.nama_kelas !== 'OFFLINE') || k[0];
-        if (!selectedKelasId) setSelectedKelasId(firstNonOffline.id);
-        if (!selectedRekapKelasId) setSelectedRekapKelasId(firstNonOffline.id);
-      }
-      if (g.length > 0 && !selectedRekapGuruId) {
-        setSelectedRekapGuruId(g[0].id);
-      }
     } catch (err) {
       console.error(err);
       showToast('Gagal memuat data: ' + err.message, 'error');
     }
-  }, [token, apiFetch, API_BASE, selectedKelasId, selectedRekapKelasId, selectedRekapGuruId, showToast]);
+  }, [token, apiFetch, API_BASE, showToast]);
+
+  // Auto-select selection states when data is loaded
+  useEffect(() => {
+    if (kelas.length > 0) {
+      const firstNonOffline = kelas.find((klass) => klass.nama_kelas !== 'OFFLINE') || kelas[0];
+      setSelectedKelasId((prev) => prev ?? firstNonOffline.id);
+      setSelectedRekapKelasId((prev) => prev ?? firstNonOffline.id);
+    }
+  }, [kelas]);
+
+  useEffect(() => {
+    if (gurus.length > 0) {
+      setSelectedRekapGuruId((prev) => prev ?? gurus[0].id);
+    }
+  }, [gurus]);
 
   useEffect(() => {
     if (token && user?.role !== 'SUPER_ADMIN') {

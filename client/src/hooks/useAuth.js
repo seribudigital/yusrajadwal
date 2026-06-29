@@ -42,9 +42,11 @@ export function useAuth(showToast, setActiveTab) {
           const clonedRes = res.clone();
           const errData = await clonedRes.json();
           if (errData.status === 'SUSPENDED') {
-            const suspendedUser = errData.user || { ...user, status: 'SUSPENDED' };
-            localStorage.setItem('user', JSON.stringify(suspendedUser));
-            setUser(suspendedUser);
+            setUser(prevUser => {
+              const suspendedUser = errData.user || { ...prevUser, status: 'SUSPENDED' };
+              localStorage.setItem('user', JSON.stringify(suspendedUser));
+              return suspendedUser;
+            });
           }
         } catch (e) {}
       }
@@ -52,7 +54,7 @@ export function useAuth(showToast, setActiveTab) {
     } catch (err) {
       throw err;
     }
-  }, [user]);
+  }, []);
 
   const handleAuthSubmit = async (e) => {
     e.preventDefault();

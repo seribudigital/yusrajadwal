@@ -124,6 +124,34 @@ router.post('/login', asyncHandler(async (req, res) => {
   });
 }));
 
+// Endpoint to verify current session and status (bypasses status block to allow re-activation polling)
+router.get('/me', asyncHandler(async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Token tidak ditemukan atau tidak valid.' });
+  }
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'super-secret-scheduling-jwt-key-change-in-production');
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: {
+        id: true,
+        email: true,
+        nama_sekolah: true,
+        role: true,
+        status: true
+      }
+    });
+    if (!user) {
+      return res.status(401).json({ error: 'Pengguna tidak ditemukan.' });
+    }
+    res.json({ user });
+  } catch (err) {
+    return res.status(401).json({ error: 'Token tidak valid.' });
+  }
+}));
+
 // ==========================================
 // SECURE ALL SUBSEQUENT ROUTES WITH AUTH MIDDLEWARE
 // ==========================================

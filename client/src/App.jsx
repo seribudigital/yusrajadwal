@@ -319,14 +319,53 @@ function App() {
     }
   };
 
+  const checkUserStatus = async (isManual = false) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/me`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.user) {
+          const wasSuspended = user?.status === 'SUSPENDED';
+          localStorage.setItem('user', JSON.stringify(data.user));
+          setUser(data.user);
+          if (wasSuspended && data.user.status === 'ACTIVE') {
+            showToast('Akun Anda telah diaktifkan kembali oleh Proktor!');
+          } else if (isManual && data.user.status === 'SUSPENDED') {
+            showToast('Akun Anda masih berstatus ditangguhkan.', 'error');
+          }
+        }
+      } else if (res.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setToken(null);
+        setUser(null);
+      }
+    } catch (err) {
+      console.error('Gagal mengecek status user:', err);
+    }
+  };
+
   useEffect(() => {
     if (token) {
+      checkUserStatus();
       fetchAnnouncement();
       if (user?.role !== 'SUPER_ADMIN') {
         fetchData();
       }
     }
   }, [token, user?.role]);
+
+  useEffect(() => {
+    if (token && user?.status === 'SUSPENDED') {
+      const timer = setInterval(() => {
+        checkUserStatus();
+      }, 5000);
+      return () => clearInterval(timer);
+    }
+  }, [token, user?.status]);
 
   // Helper to show toasts
   const showToast = (message, type = 'success') => {
@@ -1160,6 +1199,12 @@ function App() {
             Hal ini terjadi karena batas paket lisensi telah terlampaui, tagihan jatuh tempo, atau pemeliharaan akun. Silakan hubungi Proktor Central untuk mengaktifkan kembali akun Anda.
           </div>
           <div className="pt-2 flex flex-col gap-3">
+            <button
+              onClick={() => checkUserStatus(true)}
+              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-4 rounded-lg text-sm transition-colors shadow-md block text-center cursor-pointer flex items-center justify-center gap-2"
+            >
+              Cek Ulang Status Akun 🔄
+            </button>
             <a
               href="mailto:proktor@yusrajadwal.com?subject=Reaktivasi%20Akun%20Sekolah"
               className="w-full bg-rose-900 hover:bg-rose-800 text-white font-bold py-2.5 px-4 rounded-lg text-sm transition-colors shadow-md block text-center"

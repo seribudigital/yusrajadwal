@@ -725,6 +725,27 @@ function App() {
     reader.readAsText(file);
   };
 
+  const handleImportMaster = async (payload) => {
+    try {
+      showToast('Memproses impor data massal dari Excel...', 'info');
+      const res = await apiFetch(`${API_BASE}/import-master`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const result = await res.json();
+
+      if (res.ok) {
+        showToast(result.message || 'Berhasil mengimpor data master!', 'success');
+        fetchData();
+      } else {
+        showToast(result.error || 'Gagal mengimpor data master.', 'error');
+      }
+    } catch (err) {
+      showToast('Terjadi kesalahan saat mengimpor data ke server.', 'error');
+    }
+  };
+
   // ==========================================
   // DATA MANAGEMENT (CRUD API CALLS)
   // ==========================================
@@ -1463,6 +1484,8 @@ function App() {
               saveTimeSettings={saveTimeSettings}
               handleExportGuru={handleExportGuru}
               handleImportGuru={handleImportGuru}
+              schoolProfile={schoolProfile}
+              handleImportMaster={handleImportMaster}
             />
           </Suspense>
         )}

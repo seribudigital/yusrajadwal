@@ -1,4 +1,5 @@
 import React from 'react';
+import * as XLSX from 'xlsx';
 
 const MasterDataTab = React.memo(function MasterDataTab({
   masterSubTab,
@@ -34,10 +35,163 @@ const MasterDataTab = React.memo(function MasterDataTab({
   deletePlot,
   saveTimeSettings,
   handleExportGuru,
-  handleImportGuru
+  handleImportGuru,
+  schoolProfile,
+  handleImportMaster
 }) {
+  const handleDownloadTemplate = () => {
+    const wb = XLSX.utils.book_new();
+
+    // 1. Profil Sekolah
+    const profilData = [{
+      'Nama Sekolah': schoolProfile?.nama_sekolah || 'SMA Negeri 1 Contoh',
+      'Nama Kepala Sekolah': schoolProfile?.nama_kepala_sekolah || 'Dr. Budi Santoso, M.Pd.',
+      'NIP Kepala Sekolah': schoolProfile?.nip_kepala_sekolah || '197001011995121001',
+      'Nama Penyusun Jadwal': schoolProfile?.nama_penyusun_jadwal || 'Siti Aminah, S.Pd.',
+      'NIP Penyusun Jadwal': schoolProfile?.nip_penyusun_jadwal || '198502022010012002',
+      'Semester': schoolProfile?.semester || 'Ganjil',
+      'Tahun Ajaran': schoolProfile?.tahun_ajaran || '2026/2027'
+    }];
+    const wsProfil = XLSX.utils.json_to_sheet(profilData);
+    wsProfil['!cols'] = [{ wch: 25 }, { wch: 25 }, { wch: 22 }, { wch: 25 }, { wch: 22 }, { wch: 15 }, { wch: 15 }];
+    XLSX.utils.book_append_sheet(wb, wsProfil, 'Profil Sekolah');
+
+    // 2. Data Guru
+    const guruData = (gurus && gurus.length > 0)
+      ? gurus.map(g => ({ 'Nama Guru': g.nama_guru, 'NIP': g.nip || '' }))
+      : [
+          { 'Nama Guru': 'Ahmad Fauzi, S.Pd.', 'NIP': '198803032015021003' },
+          { 'Nama Guru': 'Siti Aminah, S.Pd.', 'NIP': '198502022010012002' }
+        ];
+    const wsGuru = XLSX.utils.json_to_sheet(guruData);
+    wsGuru['!cols'] = [{ wch: 30 }, { wch: 22 }];
+    XLSX.utils.book_append_sheet(wb, wsGuru, 'Data Guru');
+
+    // 3. Data Kelas
+    const kelasData = (kelas && kelas.length > 0)
+      ? kelas.map(k => ({ 'Nama Kelas': k.nama_kelas }))
+      : [
+          { 'Nama Kelas': 'X-A' },
+          { 'Nama Kelas': 'X-B' }
+        ];
+    const wsKelas = XLSX.utils.json_to_sheet(kelasData);
+    wsKelas['!cols'] = [{ wch: 20 }];
+    XLSX.utils.book_append_sheet(wb, wsKelas, 'Data Kelas');
+
+    // 4. Data Mata Pelajaran
+    const mapelData = (mapels && mapels.length > 0)
+      ? mapels.map(m => ({ 'Nama Mata Pelajaran': m.nama_mapel, 'Kode Mapel': m.kode_mapel || '' }))
+      : [
+          { 'Nama Mata Pelajaran': 'Matematika', 'Kode Mapel': 'MTK' },
+          { 'Nama Mata Pelajaran': 'Bahasa Indonesia', 'Kode Mapel': 'BIN' }
+        ];
+    const wsMapel = XLSX.utils.json_to_sheet(mapelData);
+    wsMapel['!cols'] = [{ wch: 30 }, { wch: 15 }];
+    XLSX.utils.book_append_sheet(wb, wsMapel, 'Data Mata Pelajaran');
+
+    // 5. Plotting Beban Mengajar
+    const plotData = (plots && plots.length > 0)
+      ? plots.map(p => ({
+          'Nama Kelas': p.kelas?.nama_kelas || '',
+          'Nama Mata Pelajaran': p.mapel?.nama_mapel || '',
+          'Nama Guru': p.gurus && p.gurus.length > 0 ? p.gurus.map(g => g.nama_guru).join('; ') : '',
+          'Beban Jam': p.beban_jam || 0
+        }))
+      : [
+          { 'Nama Kelas': 'X-A', 'Nama Mata Pelajaran': 'Matematika', 'Nama Guru': 'Ahmad Fauzi, S.Pd.', 'Beban Jam': 4 },
+          { 'Nama Kelas': 'X-A', 'Nama Mata Pelajaran': 'Bahasa Indonesia', 'Nama Guru': 'Siti Aminah, S.Pd.', 'Beban Jam': 4 }
+        ];
+    const wsPlot = XLSX.utils.json_to_sheet(plotData);
+    wsPlot['!cols'] = [{ wch: 15 }, { wch: 30 }, { wch: 35 }, { wch: 15 }];
+    XLSX.utils.book_append_sheet(wb, wsPlot, 'Plotting Beban Mengajar');
+
+    const fileName = `Template_Data_Master_${schoolProfile?.nama_sekolah?.replace(/[^a-zA-Z0-9]/g, '_') || 'Sekolah'}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+  };
+
+  const handleUploadExcel = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const data = new Uint8Array(evt.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+
+        const findSheet = (targetName, idx) => {
+          if (workbook.Sheets[targetName]) return workbook.Sheets[targetName];
+          const foundName = workbook.SheetNames.find(n => n.toLowerCase().trim() === targetName.toLowerCase().trim());
+          if (foundName && workbook.Sheets[foundName]) return workbook.Sheets[foundName];
+          if (workbook.SheetNames[idx] && workbook.Sheets[workbook.SheetNames[idx]]) return workbook.Sheets[workbook.SheetNames[idx]];
+          return null;
+        };
+
+        const profilSheet = findSheet('Profil Sekolah', 0);
+        const guruSheet = findSheet('Data Guru', 1);
+        const kelasSheet = findSheet('Data Kelas', 2);
+        const mapelSheet = findSheet('Data Mata Pelajaran', 3);
+        const plotSheet = findSheet('Plotting Beban Mengajar', 4);
+
+        const payload = {
+          profil: profilSheet ? XLSX.utils.sheet_to_json(profilSheet) : [],
+          gurus: guruSheet ? XLSX.utils.sheet_to_json(guruSheet) : [],
+          kelas: kelasSheet ? XLSX.utils.sheet_to_json(kelasSheet) : [],
+          mapels: mapelSheet ? XLSX.utils.sheet_to_json(mapelSheet) : [],
+          plots: plotSheet ? XLSX.utils.sheet_to_json(plotSheet) : []
+        };
+
+        if (handleImportMaster) {
+          handleImportMaster(payload);
+        }
+      } catch (err) {
+        alert('Gagal membaca file Excel. Pastikan format file valid.');
+      }
+      e.target.value = '';
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 sm:gap-6 w-full max-w-full overflow-hidden">
+    <div className="flex flex-col gap-6 w-full max-w-full overflow-hidden">
+      {/* Mass Excel Input/Export Banner */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-indigo-500/30 rounded-2xl p-6 shadow-2xl transition-all duration-300 hover:border-indigo-500/50 hover:shadow-indigo-500/10">
+        <div className="absolute -right-10 -top-10 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div>
+            <h3 className="text-lg font-bold bg-gradient-to-r from-indigo-400 via-purple-300 to-pink-400 bg-clip-text text-transparent flex items-center gap-2">
+              <span>🚀</span> Input Data Massal via Excel
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-xl leading-relaxed">
+              Kelola seluruh data sekolah (Profil, Guru, Kelas, Mapel, hingga Plotting Beban Mengajar) dengan mudah dan cepat melalui satu file Excel multi-sheet.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            <button
+              onClick={handleDownloadTemplate}
+              type="button"
+              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 hover:border-slate-600 font-semibold text-xs transition-all duration-200 shadow-md hover:shadow-lg cursor-pointer active:scale-95 whitespace-nowrap"
+            >
+              <span>📥</span> Unduh Template Excel
+            </button>
+
+            <label className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold text-xs transition-all duration-200 shadow-md hover:shadow-indigo-500/25 cursor-pointer active:scale-95 whitespace-nowrap">
+              <span>📤</span> Unggah Data Excel
+              <input
+                type="file"
+                accept=".xlsx, .xls"
+                onChange={handleUploadExcel}
+                className="hidden"
+              />
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 sm:gap-6 w-full max-w-full overflow-hidden">
       
       {/* Master Navigation Left Sidebar */}
       <div className="md:col-span-1 bg-slate-900 border border-slate-800 rounded-xl p-2 sm:p-3 shadow-xl h-fit max-w-full overflow-hidden">
@@ -782,6 +936,7 @@ const MasterDataTab = React.memo(function MasterDataTab({
         )}
 
       </div>
+    </div>
     </div>
   );
 });

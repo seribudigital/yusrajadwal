@@ -6,6 +6,9 @@ const getBlockedIcon = (label) => {
   if (l.includes('upacara')) return '🚩';
   if (l.includes('sholat') || l.includes('dhuha') || l.includes('shalat')) return '🕌';
   if (l.includes('istirahat')) return '⏰';
+  if (l.includes('seni') || l.includes('lukis') || l.includes('tari') || l.includes('musik') || l.includes('desain')) return '🎨';
+  if (l.includes('lari') || l.includes('atletik')) return '🏃';
+  if (l.includes('ekskul') || l.includes('ekstra') || l.includes('olahraga') || l.includes('basket') || l.includes('futsal') || l.includes('bola') || l.includes('senam') || l.includes('pramuka')) return '⚽';
   return '🔒';
 };
 

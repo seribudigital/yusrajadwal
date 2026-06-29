@@ -1,6 +1,11 @@
 import jwt from 'jsonwebtoken';
+import { PrismaClient } from '@prisma/client';
 
-const authMiddleware = (req, res, next) => {
+const globalForPrisma = globalThis;
+const prisma = globalForPrisma.__prisma ?? new PrismaClient();
+if (process.env.NODE_ENV !== 'production') globalForPrisma.__prisma = prisma;
+
+const authMiddleware = async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -11,10 +16,31 @@ const authMiddleware = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'super-secret-scheduling-jwt-key-change-in-production');
-    req.user = {
-      id: decoded.id,
-      email: decoded.email,
-    };
+    
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: {
+        id: true,
+        email: true,
+        nama_sekolah: true,
+        role: true,
+        status: true
+      }
+    });
+
+    if (!user) {
+      return res.status(401).json({ error: 'Sesi Anda telah berakhir atau token tidak valid. Silakan login kembali.' });
+    }
+
+    if (user.status === 'SUSPENDED') {
+      return res.status(403).json({
+        error: 'Akun Anda telah ditangguhkan oleh proktor.',
+        status: 'SUSPENDED',
+        user
+      });
+    }
+
+    req.user = user;
     next();
   } catch (err) {
     return res.status(401).json({ error: 'Sesi Anda telah berakhir atau token tidak valid. Silakan login kembali.' });

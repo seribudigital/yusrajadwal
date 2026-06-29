@@ -104,6 +104,30 @@ router.put('/users/:id/status', authMiddleware, requireSuperAdmin, asyncHandler(
   res.json(updatedUser);
 }));
 
+// DELETE /api/proktor/users/:id - Delete school account
+router.delete('/users/:id', authMiddleware, requireSuperAdmin, asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userId = parseInt(id);
+  if (isNaN(userId)) {
+    return res.status(400).json({ error: 'ID pengguna tidak valid.' });
+  }
+
+  if (userId === req.user.id) {
+    return res.status(400).json({ error: 'Anda tidak dapat menghapus akun Anda sendiri.' });
+  }
+
+  const targetUser = await prisma.user.findUnique({ where: { id: userId } });
+  if (!targetUser) {
+    return res.status(404).json({ error: 'Pengguna tidak ditemukan.' });
+  }
+  if (targetUser.role === 'SUPER_ADMIN') {
+    return res.status(403).json({ error: 'Akun Super Admin tidak dapat dihapus.' });
+  }
+
+  await prisma.user.delete({ where: { id: userId } });
+  res.json({ message: 'Akun berhasil dihapus.' });
+}));
+
 // 4. POST /api/proktor/broadcast - Save global announcement banner text
 router.post('/broadcast', authMiddleware, requireSuperAdmin, asyncHandler(async (req, res) => {
   const { text } = req.body;

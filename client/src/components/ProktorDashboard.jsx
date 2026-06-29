@@ -12,6 +12,7 @@ export default function ProktorDashboard({ token, user, setUser, setToken, showT
   const [announcementText, setAnnouncementText] = useState('');
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null); // stores user ID of action
+  const [deleteLoading, setDeleteLoading] = useState(null);
   const [broadcastLoading, setBroadcastLoading] = useState(false);
 
   const fetchAdminData = async () => {
@@ -85,6 +86,35 @@ export default function ProktorDashboard({ token, user, setUser, setToken, showT
       showToast('Gagal mengubah status: ' + err.message, 'error');
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const deleteUser = async (userId, userEmail) => {
+    if (!window.confirm(`Apakah Anda yakin ingin menghapus akun ${userEmail} beserta seluruh data jadwalnya secara permanen?`)) {
+      return;
+    }
+    setDeleteLoading(userId);
+    try {
+      const res = await fetch(`${API_BASE}/proktor/users/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Gagal menghapus pengguna.');
+      }
+
+      showToast(`Berhasil menghapus akun ${userEmail}.`);
+      setUsers(prevUsers => prevUsers.filter(u => u.id !== userId));
+      fetchAdminData();
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal menghapus akun: ' + err.message, 'error');
+    } finally {
+      setDeleteLoading(null);
     }
   };
 
@@ -329,20 +359,30 @@ export default function ProktorDashboard({ token, user, setUser, setToken, showT
                         {item.role === 'SUPER_ADMIN' ? (
                           <span className="text-xs text-slate-500 italic">No Action Needed</span>
                         ) : (
-                          <button
-                            onClick={() => toggleUserStatus(item.id, item.status)}
-                            disabled={actionLoading === item.id}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                              item.status === 'ACTIVE'
-                                ? 'bg-rose-950/30 hover:bg-rose-900/50 border border-rose-900/50 text-rose-300 hover:border-rose-500/50'
-                                : 'bg-emerald-950/30 hover:bg-emerald-900/50 border border-emerald-900/50 text-emerald-300 hover:border-emerald-500/50'
-                            } disabled:opacity-40`}
-                          >
-                            {actionLoading === item.id 
-                              ? 'Proses...' 
-                              : item.status === 'ACTIVE' ? 'Tangguhkan 🚫' : 'Aktifkan Akun 🔓'
-                            }
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => toggleUserStatus(item.id, item.status)}
+                              disabled={actionLoading === item.id || deleteLoading === item.id}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                item.status === 'ACTIVE'
+                                  ? 'bg-rose-950/30 hover:bg-rose-900/50 border border-rose-900/50 text-rose-300 hover:border-rose-500/50'
+                                  : 'bg-emerald-950/30 hover:bg-emerald-900/50 border border-emerald-900/50 text-emerald-300 hover:border-emerald-500/50'
+                              } disabled:opacity-40`}
+                            >
+                              {actionLoading === item.id 
+                                ? 'Proses...' 
+                                : item.status === 'ACTIVE' ? 'Tangguhkan 🚫' : 'Aktifkan Akun 🔓'
+                              }
+                            </button>
+                            <button
+                              onClick={() => deleteUser(item.id, item.email)}
+                              disabled={actionLoading === item.id || deleteLoading === item.id}
+                              className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer bg-red-950/40 hover:bg-red-900/60 border border-red-900/60 text-red-300 hover:border-red-500/60 disabled:opacity-40"
+                              title="Hapus Akun Permanen"
+                            >
+                              {deleteLoading === item.id ? '...' : 'Hapus 🗑️'}
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>

@@ -160,6 +160,16 @@ function App() {
         localStorage.removeItem('user');
         setToken(null);
         setUser(null);
+      } else if (res.status === 403) {
+        try {
+          const clonedRes = res.clone();
+          const errData = await clonedRes.json();
+          if (errData.status === 'SUSPENDED') {
+            const suspendedUser = errData.user || { ...user, status: 'SUSPENDED' };
+            localStorage.setItem('user', JSON.stringify(suspendedUser));
+            setUser(suspendedUser);
+          }
+        } catch (e) {}
       }
       return res;
     } catch (err) {

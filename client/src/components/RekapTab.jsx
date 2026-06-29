@@ -598,7 +598,15 @@ const RekapTab = React.memo(function RekapTab({
                        p.kelas?.nama_kelas?.toUpperCase() !== "OFFLINE" &&
                        p.kelas?.nama_kelas?.toUpperCase() !== "SIBUK" &&
                        p.kelas?.nama_kelas?.toUpperCase() !== "KELAS SIBUK"
-              );
+              ).sort((a, b) => {
+                const mapelA = a.mapel?.nama_mapel || '';
+                const mapelB = b.mapel?.nama_mapel || '';
+                const cmpMapel = mapelA.localeCompare(mapelB, 'id', { sensitivity: 'base' });
+                if (cmpMapel !== 0) return cmpMapel;
+                const kelasA = a.kelas?.nama_kelas || '';
+                const kelasB = b.kelas?.nama_kelas || '';
+                return kelasA.localeCompare(kelasB, 'id', { numeric: true, sensitivity: 'base' });
+              });
 
               if (teacherPlots.length === 0) return null;
 

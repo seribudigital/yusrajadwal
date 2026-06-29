@@ -10,9 +10,14 @@ const authMiddleware = async (req, res, next) => {
 
   const token = authHeader.split(' ')[1];
 
+  let decoded;
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'super-secret-scheduling-jwt-key-change-in-production');
-    
+    decoded = jwt.verify(token, process.env.JWT_SECRET || 'super-secret-scheduling-jwt-key-change-in-production');
+  } catch (err) {
+    return res.status(401).json({ error: 'Sesi Anda telah berakhir atau token tidak valid. Silakan login kembali.' });
+  }
+
+  try {
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
       select: {
@@ -39,7 +44,8 @@ const authMiddleware = async (req, res, next) => {
     req.user = user;
     next();
   } catch (err) {
-    return res.status(401).json({ error: 'Sesi Anda telah berakhir atau token tidak valid. Silakan login kembali.' });
+    console.error('Middleware database query error:', err);
+    return res.status(500).json({ error: 'Gagal terhubung ke database. Silakan coba beberapa saat lagi.' });
   }
 };
 

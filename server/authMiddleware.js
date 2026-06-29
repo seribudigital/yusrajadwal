@@ -1,9 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
-
-const globalForPrisma = globalThis;
-const prisma = globalForPrisma.__prisma ?? new PrismaClient();
-if (process.env.NODE_ENV !== 'production') globalForPrisma.__prisma = prisma;
+import prisma from './prismaClient.js';
 
 const authMiddleware = async (req, res, next) => {
   const authHeader = req.headers.authorization;

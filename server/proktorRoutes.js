@@ -1,11 +1,8 @@
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from './prismaClient.js';
 import authMiddleware from './authMiddleware.js';
 
 const router = express.Router();
-const globalForPrisma = globalThis;
-const prisma = globalForPrisma.__prisma ?? new PrismaClient();
-if (process.env.NODE_ENV !== 'production') globalForPrisma.__prisma = prisma;
 
 const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);

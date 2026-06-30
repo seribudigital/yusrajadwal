@@ -319,7 +319,7 @@ const JadwalBoard = React.memo(function JadwalBoard({
                               onMouseLeave={() => {
                                 setHoveredPlotId(null);
                               }}
-                              className="bg-indigo-950/90 border border-indigo-500/30 p-2.5 rounded-lg relative flex flex-col h-full justify-between shadow-md cursor-grab active:cursor-grabbing hover:border-indigo-400/50 transition-all duration-200"
+                              className="bg-indigo-950/90 border border-indigo-500/30 p-2.5 rounded-lg relative flex flex-col h-[72px] justify-between shadow-md cursor-grab active:cursor-grabbing hover:border-indigo-400/50 transition-all duration-200"
                             >
                               {/* Subject */}
                               <div className="font-bold text-xs text-indigo-200 leading-tight">
@@ -345,7 +345,7 @@ const JadwalBoard = React.memo(function JadwalBoard({
                             </div>
                           ) : blocked ? (
                             <div
-                              className="border border-dashed border-slate-700/85 bg-slate-900/60 text-slate-400 rounded-lg p-2.5 flex flex-col h-full min-h-[50px] justify-between shadow-md relative group select-none transition-all"
+                              className="border border-dashed border-slate-700/85 bg-slate-900/60 text-slate-400 rounded-lg p-2.5 flex flex-col h-[72px] justify-between shadow-md relative group select-none transition-all"
                               title={`Diberlakukan Kunci Slot: ${blocked.label}`}
                             >
                               <div className="font-bold text-xs text-slate-300 leading-tight flex items-center gap-1.5">
@@ -368,7 +368,7 @@ const JadwalBoard = React.memo(function JadwalBoard({
                                 style={{
                                   backgroundImage: 'repeating-linear-gradient(45deg, #2d1e24 0px, #2d1e24 6px, #1a0f12 6px, #1a0f12 12px)',
                                 }}
-                                className="border border-rose-900/60 rounded-lg py-3.5 px-1 text-center text-[10px] select-none flex flex-col justify-center items-center gap-0.5 shadow-sm animate-pulse"
+                                className="border border-rose-900/60 rounded-lg p-2 text-center text-[10px] select-none flex flex-col justify-center items-center gap-0.5 h-[72px] shadow-sm animate-pulse"
                                 title={
                                   clashingGurus.length > 0 
                                     ? `Blockout: ${clashingGurus.join(', ')} memiliki jadwal luar / blockout` 
@@ -384,7 +384,7 @@ const JadwalBoard = React.memo(function JadwalBoard({
                               </div>
                             ) : (
                               <div 
-                                className={`border border-dashed rounded-lg py-3.5 px-1 text-center text-[10px] select-none flex flex-col justify-center items-center gap-0.5 animate-pulse transition-all duration-300 ${
+                                className={`border border-dashed rounded-lg p-2 text-center text-[10px] select-none flex flex-col justify-center items-center gap-0.5 h-[72px] animate-pulse transition-all duration-300 ${
                                   isMultiGuruPlot 
                                     ? 'border-rose-700 bg-rose-950/40 text-rose-300 shadow-md shadow-rose-950/20' 
                                     : 'border-rose-900/50 bg-rose-950/20 text-rose-400'
@@ -407,7 +407,7 @@ const JadwalBoard = React.memo(function JadwalBoard({
                               </div>
                             )
                           ) : (
-                            <div className="border border-dashed border-slate-800 rounded-lg py-4 px-1 text-center text-[10px] text-slate-600 group-hover:border-slate-700 select-none relative flex flex-col justify-center items-center min-h-[50px]">
+                            <div className="border border-dashed border-slate-800 rounded-lg p-2 text-center text-[10px] text-slate-600 group-hover:border-slate-700 select-none relative flex flex-col justify-center items-center h-[72px]">
                               <span>Kosong</span>
                               <button
                                 onClick={(e) => {

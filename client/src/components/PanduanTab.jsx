@@ -186,12 +186,12 @@ const PanduanTab = React.memo(function PanduanTab() {
           </div>
         </div>
 
-        {/* Card 6: Kelas Sibuk & Jadwal Offline */}
+        {/* Card 6: Kelas Sibuk, Jadwal Offline, & Multi-Guru Radar */}
         <div className="bg-slate-950 border border-slate-800 p-5 rounded-xl flex flex-col justify-between hover:border-slate-700 transition-colors md:col-span-2">
           <div>
             <div className="flex justify-between items-start gap-2 mb-3">
               <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-                <span>⚠️</span> 6. Manajemen Kelas Sibuk & Jadwal Offline (Teacher Availability)
+                <span>⚠️</span> 6. Manajemen Kelas Sibuk & Radar Multi-Guru (Team Teaching)
               </h3>
               <span className="text-[10px] bg-rose-950 text-rose-455 border border-rose-900/50 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
                 Availability
@@ -199,19 +199,69 @@ const PanduanTab = React.memo(function PanduanTab() {
             </div>
             <div className="flex flex-col gap-2.5 text-xs text-slate-350">
               <div>
-                <strong className="text-slate-200">Logika Kelas Sibuk:</strong>
+                <strong className="text-slate-200">Logika Kelas Sibuk & Offline:</strong>
                 <p className="text-slate-400 mt-1">
-                  Fitur ini mengunci slot waktu bagi guru yang memiliki keterbatasan waktu (misal: guru honorer yang mengajar di beberapa sekolah). Jadwal dari luar sekolah disimpan dalam kelas khusus bernama <code className="bg-slate-900 px-1 py-0.5 rounded text-indigo-400 font-mono text-[11px]">OFFLINE</code>.
+                  Fitur ini mengunci slot waktu bagi guru yang memiliki keterbatasan waktu. Jadwal dari luar sekolah disimpan dalam kelas khusus bernama <code className="bg-slate-900 px-1 py-0.5 rounded text-indigo-400 font-mono text-[11px]">OFFLINE</code>.
                 </p>
               </div>
               <div>
-                <strong className="text-slate-200">Visualisasi Indikator Grid:</strong>
+                <strong className="text-slate-200">Radar Deteksi Team-Teaching (Multi-Guru):</strong>
                 <p className="text-slate-400 mt-1">
-                  Saat menyusun jadwal, jika guru yang Anda filter sedang mengajar di kelas reguler lain, slot grid akan berkedip merah dengan label <span className="text-rose-450 font-bold">⚠️ SIBUK</span>. Jika bentrok dengan jadwal luar sekolah, slot akan ditandai dengan pola garis abu-abu <span className="text-slate-300 font-bold">❌ GURU BLOCKOUT</span>.
+                  Saat menyeret atau menyoroti pelajaran dengan sistem tim pengajar (misal: kelas Tahfizh dengan 2+ guru), grid jadwal akan menganalisis jam sibuk dari **seluruh** guru yang terlibat. Jika ada salah satu guru yang berhalangan/sibuk, slot grid akan berdenyut merah dengan peringatan <span className="text-rose-400 font-bold">⚠️ PARTNER SIBUK</span> atau <span className="text-rose-350 font-bold">❌ PARTNER BLOCKOUT</span>.
+                </p>
+              </div>
+              <div>
+                <strong className="text-slate-200">Tooltip Keterangan Bentrok:</strong>
+                <p className="text-slate-400 mt-1">
+                  Arahkan kursor ke slot bentrok tersebut untuk menampilkan informasi instan mengenai nama guru yang berhalangan beserta lokasi/kelas tempat ia sedang mengajar.
                 </p>
               </div>
               <div className="bg-indigo-950/30 border border-indigo-900/50 p-2.5 rounded-lg text-indigo-300">
-                <strong>Proteksi Bentrok Otomatis:</strong> Sistem secara real-time memblokir aksi drag & drop ke slot sibuk tersebut dan mencegah penumpukan jadwal guru demi menghindari bentrok mengajar.
+                <strong>Proteksi Bentrok Real-time:</strong> Sistem memblokir peletakan kartu pelajaran ke slot bentrok secara real-time untuk menjamin jadwal 100% bebas tabrakan mengajar.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Card 7: Penyusunan Jadwal Otomatis Cerdas (Auto-Fill) */}
+        <div className="bg-slate-950 border border-slate-800 p-5 rounded-xl flex flex-col justify-between hover:border-slate-700 transition-colors md:col-span-2">
+          <div>
+            <div className="flex justify-between items-start gap-2 mb-3">
+              <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
+                <span>🤖</span> 7. Penyusunan Jadwal Otomatis Cerdas (Auto-Fill)
+              </h3>
+              <span className="text-[10px] bg-indigo-950 text-indigo-400 border border-indigo-900/50 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
+                Otomatisasi
+              </span>
+            </div>
+            <div className="flex flex-col gap-2.5 text-xs text-slate-350">
+              <p className="text-slate-400">
+                Fitur Auto-Fill Cerdas memungkinkan Anda menyusun jadwal satu kelas secara otomatis hanya dengan satu klik tombol **🤖 Auto-Fill Jadwal Kelas**. Mesin penjadwalan akan mencari slot kosong terbaik yang aman dan ideal.
+              </p>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-1">
+                <div className="bg-slate-900/50 border border-slate-850 p-3 rounded-lg flex flex-col gap-1">
+                  <strong className="text-indigo-300 font-semibold">📚 Mapel Berat di Pagi Hari</strong>
+                  <p className="text-slate-500 text-[10px] leading-relaxed">
+                    Mata pelajaran yang memerlukan konsentrasi tinggi (misal: Matematika, Fisika) diprioritaskan untuk ditempatkan pada jam-jam awal (pagi hari).
+                  </p>
+                </div>
+                <div className="bg-slate-900/50 border border-slate-850 p-3 rounded-lg flex flex-col gap-1">
+                  <strong className="text-indigo-300 font-semibold">🔗 Blok Mengajar Berurutan</strong>
+                  <p className="text-slate-500 text-[10px] leading-relaxed">
+                    Pelajaran dengan beban 2 atau 3 jam pelajaran (JP) akan diletakkan berurutan di hari yang sama agar materi tidak terpecah-pecah.
+                  </p>
+                </div>
+                <div className="bg-slate-900/50 border border-slate-850 p-3 rounded-lg flex flex-col gap-1">
+                  <strong className="text-indigo-300 font-semibold">⚙️ Preferensi Kustomisasi</strong>
+                  <p className="text-slate-500 text-[10px] leading-relaxed">
+                    Melalui *Master Data &rarr; Pengaturan Waktu*, Anda bisa menentukan daftar Mapel Berat, batas jam maksimal pagi hari, dan mengaktifkan/mematikan kebijakan Anti-Split.
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-indigo-950/30 border border-indigo-900/50 p-2.5 rounded-lg text-indigo-300">
+                <strong>🛡️ Keamanan Sistem (Anti-Hang):</strong> Mesin ini dijalankan secara aditif (menjaga jadwal manual yang sudah Anda susun sebelumnya) dan dilengkapi batas maksimal 500 iterasi agar tidak menyebabkan server lambat atau hang.
               </div>
             </div>
           </div>

@@ -80,6 +80,8 @@ export function useMasterData({ apiFetch, API_BASE, showToast, token, user }) {
   // Highlight indicator for duplicate plot clashes
   const [highlightedPlotId, setHighlightedPlotId] = useState(null);
 
+  const [isAutoFilling, setIsAutoFilling] = useState(false);
+
   // Signature States for Cetak/Rekap (Editable on-screen, prints clean)
   const [kepalaSekolahName, setKepalaSekolahName] = useState('Nama Kepala Sekolah, M.Pd');
   const [kepalaSekolahNip, setKepalaSekolahNip] = useState('NIP. 197509122002121002');
@@ -447,6 +449,30 @@ export function useMasterData({ apiFetch, API_BASE, showToast, token, user }) {
     } catch {
       if (removedBlocked) setBlockedSlots(prev => [...prev, removedBlocked]);
       showToast('Koneksi server gagal. Kunci slot dikembalikan.', 'error');
+    }
+  };
+
+  const handleAutoFill = async (kelasId) => {
+    if (!kelasId) return;
+    setIsAutoFilling(true);
+    try {
+      const res = await apiFetch(`${API_BASE}/jadwals/auto-fill`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kelas_id: Number(kelasId) }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(`Auto-Fill Berhasil! ${data.placedCount} JP ditempatkan secara ideal, ${data.skippedCount} JP dilewati.`, 'success');
+        await fetchData();
+      } else {
+        showToast(data.error || 'Gagal menjalankan Auto-Fill.', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Koneksi server gagal. Gagal menjalankan Auto-Fill.', 'error');
+    } finally {
+      setIsAutoFilling(false);
     }
   };
 
@@ -1030,6 +1056,7 @@ export function useMasterData({ apiFetch, API_BASE, showToast, token, user }) {
     draggedOverSlotId, setDraggedOverSlotId,
     successDropSlotId, setSuccessDropSlotId,
     highlightedPlotId, setHighlightedPlotId,
+    isAutoFilling, setIsAutoFilling,
     schoolProfile, setSchoolProfile,
     profileForm, setProfileForm,
     kepalaSekolahName, setKepalaSekolahName,
@@ -1047,6 +1074,7 @@ export function useMasterData({ apiFetch, API_BASE, showToast, token, user }) {
     handleDeleteJadwal,
     handleLockSlot,
     handleUnlockSlot,
+    handleAutoFill,
     saveSchoolProfile,
     handleLogoChange,
     handleExportGuru,

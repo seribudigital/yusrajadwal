@@ -38,7 +38,9 @@ const JadwalBoard = React.memo(function JadwalBoard({
   handleUnlockSlot,
   handleExportGuru,
   gurus,
-  getSisaJam
+  getSisaJam,
+  isAutoFilling,
+  handleAutoFill
 }) {
   const [hoveredPlotId, setHoveredPlotId] = React.useState(null);
   const [draggedPlotId, setDraggedPlotId] = React.useState(null);
@@ -64,30 +66,53 @@ const JadwalBoard = React.memo(function JadwalBoard({
 
   return (
     <div className="flex flex-col gap-6">
+      {isAutoFilling && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[9999] flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4 bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-2xl max-w-sm text-center">
+            <div className="animate-spin h-12 w-12 border-4 border-indigo-500 border-t-transparent rounded-full"></div>
+            <h4 className="text-white font-bold text-lg mt-2">Menjadwalkan Otomatis...</h4>
+            <p className="text-slate-400 text-xs">
+              Mesin Auto-Fill sedang menganalisis slot waktu terbaik dan mencocokkan jadwal guru tanpa bentrok.
+            </p>
+          </div>
+        </div>
+      )}
       
       {/* Top Bar Filter */}
       <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-4 rounded-xl shadow-lg">
         <div className="flex flex-wrap items-center gap-6">
           <div className="flex items-center gap-3">
             <label className="text-sm font-semibold text-slate-300">Kelas Aktif:</label>
-            <select
-              value={selectedKelasId || ''}
-              onChange={(e) => {
-                setSelectedKelasId(e.target.value);
-                setSelectedFilterGuruId(''); // Clear teacher filter when class changes
-              }}
-              className="bg-slate-950 border border-slate-700 px-3 py-1.5 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors"
-            >
-              {kelas.length === 0 ? (
-                <option value="">(Belum ada kelas)</option>
-              ) : (
-                kelas
-                  .filter((k) => k.nama_kelas !== 'OFFLINE')
-                  .map((k) => (
-                    <option key={k.id} value={k.id}>Kelas {k.nama_kelas}</option>
-                  ))
+            <div className="flex items-center gap-2">
+              <select
+                value={selectedKelasId || ''}
+                onChange={(e) => {
+                  setSelectedKelasId(e.target.value);
+                  setSelectedFilterGuruId(''); // Clear teacher filter when class changes
+                }}
+                className="bg-slate-950 border border-slate-700 px-3 py-1.5 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors"
+              >
+                {kelas.length === 0 ? (
+                  <option value="">(Belum ada kelas)</option>
+                ) : (
+                  kelas
+                    .filter((k) => k.nama_kelas !== 'OFFLINE')
+                    .map((k) => (
+                      <option key={k.id} value={k.id}>Kelas {k.nama_kelas}</option>
+                    ))
+                )}
+              </select>
+              {selectedKelasId && (
+                <button
+                  onClick={() => handleAutoFill(selectedKelasId)}
+                  disabled={isAutoFilling}
+                  className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold px-3 py-1.5 rounded-lg text-xs cursor-pointer flex items-center gap-1.5 transition-all shadow-md active:scale-95 border border-indigo-500/30"
+                  title="Auto-fill jadwal untuk kelas terpilih secara otomatis"
+                >
+                  {isAutoFilling ? '🤖 Memproses...' : '🤖 Auto-Fill Jadwal Kelas'}
+                </button>
               )}
-            </select>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">

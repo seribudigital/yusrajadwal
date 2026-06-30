@@ -92,6 +92,7 @@ function App() {
     draggedOverSlotId, setDraggedOverSlotId,
     successDropSlotId, setSuccessDropSlotId,
     highlightedPlotId, setHighlightedPlotId,
+    isAutoFilling,
     schoolProfile, setSchoolProfile,
     profileForm, setProfileForm,
     kepalaSekolahName, setKepalaSekolahName,
@@ -109,6 +110,7 @@ function App() {
     handleDeleteJadwal,
     handleLockSlot,
     handleUnlockSlot,
+    handleAutoFill,
     saveSchoolProfile,
     handleLogoChange,
     handleExportGuru,
@@ -396,6 +398,8 @@ function App() {
               handleExportGuru={handleExportGuru}
               gurus={gurus}
               getSisaJam={getSisaJam}
+              isAutoFilling={isAutoFilling}
+              handleAutoFill={handleAutoFill}
             />
           </Suspense>
         )}

@@ -187,7 +187,7 @@ const PanduanTab = React.memo(function PanduanTab() {
         </div>
 
         {/* Card 6: Kelas Sibuk, Jadwal Offline, & Multi-Guru Radar */}
-        <div className="bg-slate-950 border border-slate-800 p-5 rounded-xl flex flex-col justify-between hover:border-slate-700 transition-colors md:col-span-2">
+        <div className="bg-slate-950 border border-slate-800 p-5 rounded-xl flex flex-col justify-between hover:border-slate-700 transition-colors">
           <div>
             <div className="flex justify-between items-start gap-2 mb-3">
               <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">

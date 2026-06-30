@@ -46,12 +46,18 @@ export function useMasterData({ apiFetch, API_BASE, showToast, token, user }) {
   const [timeSettings, setTimeSettings] = useState({
     active_days: ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'],
     total_jp: 10,
-    breaks: []
+    breaks: [],
+    heavy_subjects: ['Matematika', 'Fisika', 'Kimia', 'Akuntansi', 'Bilingual'],
+    heavy_max_jam: 5,
+    allow_split: false
   });
   const [timeForm, setTimeForm] = useState({
     active_days: ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'],
     total_jp: 10,
-    breaks: []
+    breaks: [],
+    heavy_subjects: ['Matematika', 'Fisika', 'Kimia', 'Akuntansi', 'Bilingual'],
+    heavy_max_jam: 5,
+    allow_split: false
   });
 
   // Active Selections
@@ -140,11 +146,20 @@ export function useMasterData({ apiFetch, API_BASE, showToast, token, user }) {
       setBlockedSlots(bs);
       if (ts) {
         const initialBreaks = getInitialBreaks(ts.breaks);
-        setTimeSettings({ ...ts, breaks: initialBreaks });
+        setTimeSettings({
+          ...ts,
+          breaks: initialBreaks,
+          heavy_subjects: ts.heavy_subjects || ['Matematika', 'Fisika', 'Kimia', 'Akuntansi', 'Bilingual'],
+          heavy_max_jam: ts.heavy_max_jam !== null && ts.heavy_max_jam !== undefined ? ts.heavy_max_jam : 5,
+          allow_split: ts.allow_split !== null && ts.allow_split !== undefined ? ts.allow_split : false
+        });
         setTimeForm({
           active_days: ts.active_days || [],
           total_jp: ts.total_jp || 10,
-          breaks: initialBreaks
+          breaks: initialBreaks,
+          heavy_subjects: ts.heavy_subjects || ['Matematika', 'Fisika', 'Kimia', 'Akuntansi', 'Bilingual'],
+          heavy_max_jam: ts.heavy_max_jam !== null && ts.heavy_max_jam !== undefined ? ts.heavy_max_jam : 5,
+          allow_split: ts.allow_split !== null && ts.allow_split !== undefined ? ts.allow_split : false
         });
       }
 
@@ -949,18 +964,30 @@ export function useMasterData({ apiFetch, API_BASE, showToast, token, user }) {
         body: JSON.stringify({
           active_days: timeForm.active_days,
           total_jp: totalJpVal,
-          breaks: timeForm.breaks
+          breaks: timeForm.breaks,
+          heavy_subjects: timeForm.heavy_subjects || ['Matematika', 'Fisika', 'Kimia', 'Akuntansi', 'Bilingual'],
+          heavy_max_jam: Number(timeForm.heavy_max_jam !== undefined ? timeForm.heavy_max_jam : 5),
+          allow_split: !!timeForm.allow_split
         })
       });
 
       const data = await res.json();
       if (res.ok) {
         const initialBreaks = getInitialBreaks(data.breaks);
-        setTimeSettings({ ...data, breaks: initialBreaks });
+        setTimeSettings({
+          ...data,
+          breaks: initialBreaks,
+          heavy_subjects: data.heavy_subjects || ['Matematika', 'Fisika', 'Kimia', 'Akuntansi', 'Bilingual'],
+          heavy_max_jam: data.heavy_max_jam !== null && data.heavy_max_jam !== undefined ? data.heavy_max_jam : 5,
+          allow_split: data.allow_split !== null && data.allow_split !== undefined ? data.allow_split : false
+        });
         setTimeForm({
           active_days: data.active_days || [],
           total_jp: data.total_jp || 10,
-          breaks: initialBreaks
+          breaks: initialBreaks,
+          heavy_subjects: data.heavy_subjects || ['Matematika', 'Fisika', 'Kimia', 'Akuntansi', 'Bilingual'],
+          heavy_max_jam: data.heavy_max_jam !== null && data.heavy_max_jam !== undefined ? data.heavy_max_jam : 5,
+          allow_split: data.allow_split !== null && data.allow_split !== undefined ? data.allow_split : false
         });
         showToast('Pengaturan waktu berhasil disimpan!', 'success');
         

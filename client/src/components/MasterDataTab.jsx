@@ -39,6 +39,8 @@ const MasterDataTab = React.memo(function MasterDataTab({
   schoolProfile,
   handleImportMaster
 }) {
+  const [newSubjectTag, setNewSubjectTag] = React.useState('');
+
   const handleDownloadTemplate = () => {
     const wb = XLSX.utils.book_new();
 
@@ -919,6 +921,134 @@ const MasterDataTab = React.memo(function MasterDataTab({
                       );
                     })}
                   </div>
+                </div>
+
+                {/* 4. Pengaturan Preferensi Auto-Fill */}
+                <div className="flex flex-col gap-4 pt-4 border-t border-slate-800">
+                  <h3 className="text-sm font-bold text-slate-355 flex items-center gap-1.5">
+                    🤖 Pengaturan Preferensi Auto-Fill
+                  </h3>
+                  <span className="text-[11px] text-slate-500 -mt-2">
+                    Sesuaikan parameter kecerdasan buatan penjadwalan otomatis untuk menyesuaikan dengan kebutuhan sekolah Anda.
+                  </span>
+
+                  {/* A. Mata Pelajaran Berat */}
+                  <div className="flex flex-col gap-2 bg-slate-900/40 border border-slate-850 p-4 rounded-lg">
+                    <label className="text-xs font-semibold text-slate-200">
+                      A. Daftar Mata Pelajaran Berat (Pagi Prioritas)
+                    </label>
+                    <span className="text-[10px] text-slate-500 -mt-1">
+                      Mata pelajaran ini diprioritaskan ditempatkan di pagi hari. Tekan Enter atau klik Tambah untuk memasukkan mata pelajaran baru.
+                    </span>
+                    
+                    {/* Tags List */}
+                    <div className="flex flex-wrap gap-1.5 mt-1 pb-2 min-h-[36px]">
+                      {(timeForm.heavy_subjects || []).map((subject, index) => (
+                        <span key={index} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-indigo-950/70 border border-indigo-500/25 text-xs text-indigo-300 font-medium">
+                          {subject}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updatedTags = (timeForm.heavy_subjects || []).filter((_, i) => i !== index);
+                              setTimeForm({ ...timeForm, heavy_subjects: updatedTags });
+                            }}
+                            className="text-indigo-400 hover:text-indigo-200 font-bold focus:outline-none cursor-pointer"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                      {(timeForm.heavy_subjects || []).length === 0 && (
+                        <span className="text-xs text-slate-600 italic select-none">Belum ada mata pelajaran berat yang dikonfigurasi.</span>
+                      )}
+                    </div>
+
+                    {/* Tag Input Field */}
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Contoh: Matematika"
+                        value={newSubjectTag}
+                        onChange={(e) => setNewSubjectTag(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const val = newSubjectTag.trim();
+                            if (val && !(timeForm.heavy_subjects || []).includes(val)) {
+                              setTimeForm({ ...timeForm, heavy_subjects: [...(timeForm.heavy_subjects || []), val] });
+                              setNewSubjectTag('');
+                            }
+                          }
+                        }}
+                        className="flex-1 bg-slate-950 border border-slate-850 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const val = newSubjectTag.trim();
+                          if (val && !(timeForm.heavy_subjects || []).includes(val)) {
+                            setTimeForm({ ...timeForm, heavy_subjects: [...(timeForm.heavy_subjects || []), val] });
+                            setNewSubjectTag('');
+                          }
+                        }}
+                        className="bg-indigo-950/50 hover:bg-indigo-900 border border-indigo-800 text-indigo-300 text-xs font-semibold px-4 py-1.5 rounded-lg cursor-pointer transition-colors"
+                      >
+                        Tambah
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* B. Batas Jam Pelajaran Pagi */}
+                  <div className="flex flex-col gap-2 bg-slate-900/40 border border-slate-850 p-4 rounded-lg">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex flex-col gap-0.5">
+                        <label className="text-xs font-semibold text-slate-200">
+                          B. Batas Maksimal Jam Pelajaran Berat (Pagi)
+                        </label>
+                        <span className="text-[10px] text-slate-500">
+                          Mata pelajaran berat hanya akan diletakkan di antara Jam Ke-1 hingga jam yang dipilih.
+                        </span>
+                      </div>
+                      <select
+                        value={timeForm.heavy_max_jam !== undefined ? timeForm.heavy_max_jam : 5}
+                        onChange={(e) => setTimeForm({ ...timeForm, heavy_max_jam: Number(e.target.value) })}
+                        className="bg-slate-950 border border-slate-850 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 w-44 cursor-pointer"
+                      >
+                        {Array.from({ length: Number(timeForm.total_jp || 0) }).map((_, i) => (
+                          <option key={i + 1} value={i + 1}>
+                            Hingga Jam Ke-{i + 1}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* C. Izinkan Pecah Jam Pelajaran */}
+                  <div className="flex flex-col gap-2 bg-slate-900/40 border border-slate-850 p-4 rounded-lg">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex flex-col gap-0.5">
+                        <label className="text-xs font-semibold text-slate-200">
+                          C. Kebijakan Blok Mengajar (Anti-Split)
+                        </label>
+                        <span className="text-[10px] text-slate-500">
+                          Matikan untuk mewajibkan pelajaran 2/3 JP diletakkan sekaligus secara berurutan di hari yang sama.
+                        </span>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={timeForm.allow_split || false}
+                          onChange={(e) => setTimeForm({ ...timeForm, allow_split: e.target.checked })}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-350 after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 peer-checked:after:bg-white"></div>
+                        <span className="ml-3 text-xs font-semibold text-slate-350 w-24">
+                          {timeForm.allow_split ? 'Pecah Jam' : 'Blok Utuh'}
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+
                 </div>
 
                 <div className="mt-2 pt-4 border-t border-slate-800/80 flex justify-end">

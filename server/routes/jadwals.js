@@ -321,8 +321,8 @@ router.post('/jadwals/auto-fill', asyncHandler(async (req, res) => {
   const kelasId = parseInt(kelas_id);
   const userId = req.user.id;
 
-  // 1. Fetch class, plots, slots, blocked slots, and existing schedules (OUTSIDE of the transaction)
-  const [targetKelas, plots, slots, blockedSlots, existingJadwals] = await Promise.all([
+  // 1. Fetch class, plots, slots, blocked slots, existing schedules, and time settings (OUTSIDE of the transaction)
+  const [targetKelas, plots, slots, blockedSlots, existingJadwals, timeSetting] = await Promise.all([
     prisma.kelas.findFirst({ where: { id: kelasId, user_id: userId } }),
     prisma.plot.findMany({
       where: { kelas_id: kelasId, user_id: userId },
@@ -346,7 +346,8 @@ router.post('/jadwals/auto-fill', asyncHandler(async (req, res) => {
           }
         }
       }
-    })
+    }),
+    prisma.timeSetting.findUnique({ where: { user_id: userId } })
   ]);
 
   if (!targetKelas) {
@@ -363,12 +364,21 @@ router.post('/jadwals/auto-fill', asyncHandler(async (req, res) => {
     };
   }).filter(p => p.remainingHours > 0);
 
-  // 3. Sort plots by priority: heavy subjects first, then most teachers, then remaining hours descending
-  const HEAVY_SUBJECTS = ['matematika', 'fisika', 'kimia', 'akuntansi', 'bilingual'];
+  // 3. Extract customizable auto-fill preferences (fallback to defaults if not set)
+  const userHeavySubjects = (timeSetting?.heavy_subjects && Array.isArray(timeSetting.heavy_subjects))
+    ? timeSetting.heavy_subjects.map(s => s.toLowerCase())
+    : ['matematika', 'fisika', 'kimia', 'akuntansi', 'bilingual'];
+  const userHeavyMaxJam = (timeSetting?.heavy_max_jam !== null && timeSetting?.heavy_max_jam !== undefined)
+    ? timeSetting.heavy_max_jam
+    : 5;
+  const userAllowSplit = (timeSetting?.allow_split !== null && timeSetting?.allow_split !== undefined)
+    ? timeSetting.allow_split
+    : false;
+
   const isHeavySubject = (name) => {
     if (!name) return false;
     const n = name.toLowerCase();
-    return HEAVY_SUBJECTS.some(sub => n.includes(sub));
+    return userHeavySubjects.some(sub => n.includes(sub));
   };
 
   activePlots.sort((a, b) => {
@@ -462,7 +472,7 @@ router.post('/jadwals/auto-fill', asyncHandler(async (req, res) => {
             break;
           }
           if (plotIsHeavy) {
-            if (slot.jam_ke === null || slot.jam_ke < 1 || slot.jam_ke > 5) {
+            if (slot.jam_ke === null || slot.jam_ke < 1 || slot.jam_ke > userHeavyMaxJam) {
               valid = false;
               break;
             }
@@ -532,12 +542,26 @@ router.post('/jadwals/auto-fill', asyncHandler(async (req, res) => {
 
       let placed = false;
       const blockSizesToTry = [];
-      if (rem >= 3) {
-        blockSizesToTry.push(3, 2, 1);
-      } else if (rem === 2) {
-        blockSizesToTry.push(2, 1);
+      if (userAllowSplit) {
+        if (rem >= 3) {
+          blockSizesToTry.push(3, 2, 1);
+        } else if (rem === 2) {
+          blockSizesToTry.push(2, 1);
+        } else {
+          blockSizesToTry.push(1);
+        }
       } else {
-        blockSizesToTry.push(1);
+        // Anti-split: place the lesson load in a single solid block
+        if (rem === 3) {
+          blockSizesToTry.push(3);
+        } else if (rem === 2) {
+          blockSizesToTry.push(2);
+        } else if (rem === 1) {
+          blockSizesToTry.push(1);
+        } else {
+          // If rem >= 4, we try to place in blocks of 3 or 2
+          blockSizesToTry.push(3, 2);
+        }
       }
 
       for (const blockSize of blockSizesToTry) {

@@ -158,36 +158,68 @@ router.get('/time-settings', asyncHandler(async (req, res) => {
     return res.json({
       active_days: ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'],
       total_jp: 10,
-      breaks: []
+      breaks: [],
+      heavy_subjects: ['Matematika', 'Fisika', 'Kimia', 'Akuntansi', 'Bilingual'],
+      heavy_max_jam: 5,
+      allow_split: false
     });
   }
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
-  res.json(setting);
+  res.json({
+    ...setting,
+    heavy_subjects: setting.heavy_subjects || ['Matematika', 'Fisika', 'Kimia', 'Akuntansi', 'Bilingual'],
+    heavy_max_jam: setting.heavy_max_jam !== null && setting.heavy_max_jam !== undefined ? setting.heavy_max_jam : 5,
+    allow_split: setting.allow_split !== null && setting.allow_split !== undefined ? setting.allow_split : false
+  });
 }));
 
 router.post('/time-settings', asyncHandler(async (req, res) => {
-  const { active_days, total_jp, breaks } = req.body;
+  const { active_days, total_jp, breaks, heavy_subjects, heavy_max_jam, allow_split } = req.body;
 
   if (!Array.isArray(active_days) || typeof total_jp !== 'number' || !Array.isArray(breaks)) {
     return res.status(400).json({ error: 'Input tidak valid.' });
   }
 
+  const updatedData = {
+    active_days,
+    total_jp,
+    breaks
+  };
+
+  if (heavy_subjects !== undefined) {
+    if (!Array.isArray(heavy_subjects)) {
+      return res.status(400).json({ error: 'Preferensi Mata Pelajaran Berat harus berupa array.' });
+    }
+    updatedData.heavy_subjects = heavy_subjects;
+  }
+  if (heavy_max_jam !== undefined) {
+    if (typeof heavy_max_jam !== 'number') {
+      return res.status(400).json({ error: 'Preferensi Jam Pelajaran Berat harus berupa angka.' });
+    }
+    updatedData.heavy_max_jam = heavy_max_jam;
+  }
+  if (allow_split !== undefined) {
+    if (typeof allow_split !== 'boolean') {
+      return res.status(400).json({ error: 'Preferensi Izinkan Pecah Jam harus berupa boolean.' });
+    }
+    updatedData.allow_split = allow_split;
+  }
+
   const setting = await prisma.timeSetting.upsert({
     where: { user_id: req.user.id },
-    update: {
-      active_days,
-      total_jp,
-      breaks
-    },
+    update: updatedData,
     create: {
       user_id: req.user.id,
-      active_days,
-      total_jp,
-      breaks
+      ...updatedData
     }
   });
 
-  res.json(setting);
+  res.json({
+    ...setting,
+    heavy_subjects: setting.heavy_subjects || ['Matematika', 'Fisika', 'Kimia', 'Akuntansi', 'Bilingual'],
+    heavy_max_jam: setting.heavy_max_jam !== null && setting.heavy_max_jam !== undefined ? setting.heavy_max_jam : 5,
+    allow_split: setting.allow_split !== null && setting.allow_split !== undefined ? setting.allow_split : false
+  });
 }));
 
 export default router;

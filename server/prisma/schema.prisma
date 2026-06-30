@@ -29,12 +29,15 @@ model User {
 }
 
 model TimeSetting {
-  id          Int      @id @default(autoincrement())
-  user_id     Int      @unique
-  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  active_days Json     // e.g. ["Senin", "Selasa", "Rabu", "Kamis", "Jumat"]
-  total_jp    Int      // e.g. 8 or 10
-  breaks      Json     // e.g. [4, 7]
+  id             Int      @id @default(autoincrement())
+  user_id        Int      @unique
+  user           User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  active_days    Json     // e.g. ["Senin", "Selasa", "Rabu", "Kamis", "Jumat"]
+  total_jp       Int      // e.g. 8 or 10
+  breaks         Json     // e.g. [4, 7]
+  heavy_subjects Json?    // Array of heavy subjects, e.g. ["Matematika", "Fisika"]
+  heavy_max_jam  Int?     @default(5)
+  allow_split    Boolean? @default(false)
 
   @@index([user_id])
   @@map("time_settings")

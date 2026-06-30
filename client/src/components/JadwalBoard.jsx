@@ -40,6 +40,28 @@ const JadwalBoard = React.memo(function JadwalBoard({
   gurus,
   getSisaJam
 }) {
+  const [hoveredPlotId, setHoveredPlotId] = React.useState(null);
+  const [draggedPlotId, setDraggedPlotId] = React.useState(null);
+
+  const activePlotId = draggedPlotId || hoveredPlotId;
+
+  const activePlotGuruIds = React.useMemo(() => {
+    if (!activePlotId) return [];
+    
+    let activePlot = activeClassPlots.find(p => p.id === activePlotId);
+    if (!activePlot) {
+      const scheduledJadwal = jadwals.find(j => j.plot_id === activePlotId);
+      if (scheduledJadwal) {
+        activePlot = scheduledJadwal.plot;
+      }
+    }
+    
+    if (!activePlot) return [];
+    return activePlot.gurus
+      ? activePlot.gurus.map(g => g.id)
+      : (activePlot.guru_id ? [activePlot.guru_id] : []);
+  }, [activePlotId, activeClassPlots, jadwals]);
+
   return (
     <div className="flex flex-col gap-6">
       
@@ -184,15 +206,56 @@ const JadwalBoard = React.memo(function JadwalBoard({
                       );
                       const isBlocked = !!blocked;
 
-                      // Check if selected teacher is busy at this slot in another class
-                      const busyTeacherJadwal = selectedFilterGuruId
+                      // Determine which teachers we are highlighting (dragged/hovered plot or filtered teacher)
+                      const targetGuruIds = activePlotGuruIds.length > 0
+                        ? activePlotGuruIds
+                        : (selectedFilterGuruId ? [Number(selectedFilterGuruId)] : []);
+
+                      // Check if any target teacher is busy at this slot in another class
+                      const busyTeacherJadwal = targetGuruIds.length > 0
                         ? jadwals.find(
                             (j) =>
                               j.slot_id === slot.id &&
-                              (j.plot.gurus ? j.plot.gurus.some(g => g.id === Number(selectedFilterGuruId)) : j.plot.guru_id === Number(selectedFilterGuruId)) &&
-                              j.plot.kelas_id !== Number(selectedKelasId)
+                              j.plot &&
+                              j.plot.kelas_id !== Number(selectedKelasId) &&
+                              (j.plot.gurus
+                                ? j.plot.gurus.some(g => targetGuruIds.includes(g.id))
+                                : targetGuruIds.includes(j.plot.guru_id))
                           )
                         : null;
+
+                      // Find which teacher(s) from targetGuruIds are actually busy in this slot
+                      const clashingGurus = [];
+                      if (busyTeacherJadwal && busyTeacherJadwal.plot) {
+                        const busyPlotGurus = busyTeacherJadwal.plot.gurus
+                          ? busyTeacherJadwal.plot.gurus.map(g => g.id)
+                          : (busyTeacherJadwal.plot.guru_id ? [busyTeacherJadwal.plot.guru_id] : []);
+                        
+                        targetGuruIds.forEach(id => {
+                          if (busyPlotGurus.includes(id)) {
+                            let teacherObj = null;
+                            if (activePlotId) {
+                              const activePlot = activeClassPlots.find(p => p.id === activePlotId) || (jadwals.find(j => j.plot_id === activePlotId)?.plot);
+                              if (activePlot && activePlot.gurus) {
+                                teacherObj = activePlot.gurus.find(g => g.id === id);
+                              }
+                              if (!teacherObj && activePlot && activePlot.guru && activePlot.guru.id === id) {
+                                teacherObj = activePlot.guru;
+                              }
+                            }
+                            if (!teacherObj) {
+                              teacherObj = activeClassGurus.find(g => g.id === id) || gurus.find(g => g.id === id);
+                            }
+                            if (teacherObj) {
+                              clashingGurus.push(teacherObj.nama_guru);
+                            } else {
+                              clashingGurus.push("Guru");
+                            }
+                          }
+                        });
+                      }
+
+                      const isMultiGuruPlot = activePlotGuruIds.length > 1;
 
                       const isDraggedOver = draggedOverSlotId === slot.id;
                       const isSuccessDrop = successDropSlotId === slot.id;
@@ -218,7 +281,19 @@ const JadwalBoard = React.memo(function JadwalBoard({
                           {scheduled ? (
                             <div
                               draggable
-                              onDragStart={(e) => handleDragStart(e, scheduled.plot_id, scheduled.id)}
+                              onDragStart={(e) => {
+                                setDraggedPlotId(scheduled.plot_id);
+                                handleDragStart(e, scheduled.plot_id, scheduled.id);
+                              }}
+                              onDragEnd={() => {
+                                setDraggedPlotId(null);
+                              }}
+                              onMouseEnter={() => {
+                                setHoveredPlotId(scheduled.plot_id);
+                              }}
+                              onMouseLeave={() => {
+                                setHoveredPlotId(null);
+                              }}
                               className="bg-indigo-950/90 border border-indigo-500/30 p-2.5 rounded-lg relative flex flex-col h-full justify-between shadow-md cursor-grab active:cursor-grabbing hover:border-indigo-400/50 transition-all duration-200"
                             >
                               {/* Subject */}
@@ -266,18 +341,44 @@ const JadwalBoard = React.memo(function JadwalBoard({
                             busyTeacherJadwal.plot.kelas.nama_kelas === "OFFLINE" ? (
                               <div
                                 style={{
-                                  backgroundImage: 'repeating-linear-gradient(45deg, #1e293b 0px, #1e293b 6px, #0f172a 6px, #0f172a 12px)',
+                                  backgroundImage: 'repeating-linear-gradient(45deg, #2d1e24 0px, #2d1e24 6px, #1a0f12 6px, #1a0f12 12px)',
                                 }}
-                                className="border border-slate-700/60 rounded-lg py-3.5 px-1 text-center text-[10px] select-none flex flex-col justify-center items-center gap-0.5 shadow-sm animate-pulse"
-                                title="Guru Blockout / Jadwal Luar"
+                                className="border border-rose-900/60 rounded-lg py-3.5 px-1 text-center text-[10px] select-none flex flex-col justify-center items-center gap-0.5 shadow-sm animate-pulse"
+                                title={
+                                  clashingGurus.length > 0 
+                                    ? `Blockout: ${clashingGurus.join(', ')} memiliki jadwal luar / blockout` 
+                                    : 'Guru Blockout / Jadwal Luar'
+                                }
                               >
-                                <span className="font-extrabold text-slate-350 tracking-wide text-[9px]">❌ GURU BLOCKOUT</span>
-                                <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider leading-none">❌ JADWAL LUAR</span>
+                                <span className="font-extrabold text-rose-350 tracking-wide text-[9px]">
+                                  {isMultiGuruPlot ? '❌ PARTNER BLOCKOUT' : '❌ GURU BLOCKOUT'}
+                                </span>
+                                <span className="text-[8px] text-rose-450 font-bold uppercase tracking-wider leading-none mt-0.5 truncate max-w-[95%]">
+                                  {clashingGurus.length > 0 ? clashingGurus.join(', ') : 'JADWAL LUAR'}
+                                </span>
                               </div>
                             ) : (
-                              <div className="border border-dashed border-rose-900/50 bg-rose-950/20 text-rose-400 rounded-lg py-3.5 px-1 text-center text-[10px] select-none flex flex-col justify-center items-center gap-0.5 animate-pulse">
-                                <span className="font-bold text-rose-400 tracking-wide text-[10px]">⚠️ SIBUK</span>
-                                <span className="text-[9px] text-rose-300/80 font-semibold leading-none truncate max-w-full" title={`Mengajar di kelas ${busyTeacherJadwal.plot.kelas.nama_kelas}`}>Kelas {busyTeacherJadwal.plot.kelas.nama_kelas}</span>
+                              <div 
+                                className={`border border-dashed rounded-lg py-3.5 px-1 text-center text-[10px] select-none flex flex-col justify-center items-center gap-0.5 animate-pulse transition-all duration-300 ${
+                                  isMultiGuruPlot 
+                                    ? 'border-rose-700 bg-rose-950/40 text-rose-300 shadow-md shadow-rose-950/20' 
+                                    : 'border-rose-900/50 bg-rose-950/20 text-rose-400'
+                                }`}
+                                title={
+                                  clashingGurus.length > 0 
+                                    ? `Bentrok: ${clashingGurus.join(', ')} mengajar di kelas ${busyTeacherJadwal.plot.kelas.nama_kelas}` 
+                                    : `Guru sibuk di kelas ${busyTeacherJadwal.plot.kelas.nama_kelas}`
+                                }
+                              >
+                                <span className="font-bold tracking-wide text-[10px]">
+                                  {isMultiGuruPlot ? '⚠️ PARTNER SIBUK' : '⚠️ SIBUK'}
+                                </span>
+                                <span className="text-[9px] text-rose-200/90 font-semibold leading-tight truncate max-w-[95%]">
+                                  {clashingGurus.length > 0 ? clashingGurus.join(', ') : 'Guru'}
+                                </span>
+                                <span className="text-[8px] text-rose-400/80 font-medium leading-none mt-0.5">
+                                  Kelas {busyTeacherJadwal.plot.kelas.nama_kelas}
+                                </span>
                               </div>
                             )
                           ) : (
@@ -338,7 +439,19 @@ const JadwalBoard = React.memo(function JadwalBoard({
                     <div
                       key={plot.id}
                       draggable
-                      onDragStart={(e) => handleDragStart(e, plot.id)}
+                      onDragStart={(e) => {
+                        setDraggedPlotId(plot.id);
+                        handleDragStart(e, plot.id);
+                      }}
+                      onDragEnd={() => {
+                        setDraggedPlotId(null);
+                      }}
+                      onMouseEnter={() => {
+                        setHoveredPlotId(plot.id);
+                      }}
+                      onMouseLeave={() => {
+                        setHoveredPlotId(null);
+                      }}
                       className="bg-slate-950/60 border border-slate-800 text-slate-200 cursor-grab hover:border-indigo-500/50 hover:bg-slate-950/80 active:cursor-grabbing hover:-translate-y-0.5 border p-3 rounded-xl shadow-sm transition-all duration-200"
                     >
                       <div className="flex justify-between items-start gap-1">

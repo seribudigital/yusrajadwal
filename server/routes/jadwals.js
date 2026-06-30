@@ -554,7 +554,8 @@ router.post('/jadwals/auto-fill', asyncHandler(async (req, res) => {
             currentJadwals.push(newJadwalEntry);
             newJadwalsToCreate.push({
               slot_id: slot.id,
-              plot_id: plot.id
+              plot_id: plot.id,
+              user_id: userId
             });
           });
 
@@ -576,39 +577,17 @@ router.post('/jadwals/auto-fill', asyncHandler(async (req, res) => {
     }
   }
 
-  // 5. Save placements inside a short transaction with a custom timeout (15s)
-  const createdJadwals = await prisma.$transaction(async (tx) => {
-    const list = [];
-    for (const data of newJadwalsToCreate) {
-      const newJadwal = await tx.jadwal.create({
-        data: {
-          slot_id: data.slot_id,
-          plot_id: data.plot_id,
-          user_id: userId
-        },
-        include: {
-          slot: { select: { id: true, hari: true, jam_ke: true, jam_mulai: true, jam_selesai: true, is_istirahat: true, keterangan: true } },
-          plot: {
-            include: {
-              gurus: { select: { id: true, nama_guru: true } },
-              mapel: { select: { id: true, nama_mapel: true, kode_mapel: true } },
-              kelas: { select: { id: true, nama_kelas: true } }
-            }
-          }
-        }
-      });
-      list.push(newJadwal);
-    }
-    return list;
-  }, {
-    timeout: 15000 // 15 seconds timeout
-  });
+  // 5. Save placements using createMany for bulk insertion (extremely fast)
+  if (newJadwalsToCreate.length > 0) {
+    await prisma.jadwal.createMany({
+      data: newJadwalsToCreate
+    });
+  }
 
   res.json({
     success: true,
     placedCount,
-    skippedCount,
-    data: createdJadwals
+    skippedCount
   });
 }));
 
